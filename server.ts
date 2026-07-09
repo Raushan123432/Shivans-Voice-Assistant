@@ -1,10 +1,15 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket as WSWebSocket } from 'ws';
 import { GoogleGenAI, Modality, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+
+// Polyfill global WebSocket for @google/genai SDK on Node.js (highly critical for older Node.js runtimes in containers)
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = WSWebSocket;
+}
 
 // Load environment variables
 dotenv.config();
@@ -87,7 +92,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 // WebSocket Proxy Connection to Gemini Live API
-wss.on('connection', async (clientWs: WebSocket, request) => {
+wss.on('connection', async (clientWs: WSWebSocket, request) => {
   console.log('[Server WebSocket] New client connected');
   
   // 1. Parse Voice, Language, Sensitivity, and Assistant Name from query parameters
