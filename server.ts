@@ -6,10 +6,9 @@ import { GoogleGenAI, Modality, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 
-// Polyfill global WebSocket for @google/genai SDK on Node.js (highly critical for older Node.js runtimes in containers)
-if (typeof globalThis.WebSocket === 'undefined') {
-  (globalThis as any).WebSocket = WSWebSocket;
-}
+// Unconditionally polyfill global WebSocket for @google/genai SDK on Node.js to use the highly robust 'ws' library.
+// Node's native experimental WebSocket (Node 22+) has known handshake and TLS/proxy issues with the Gemini Live API.
+(globalThis as any).WebSocket = WSWebSocket;
 
 // Load environment variables
 dotenv.config();
@@ -83,7 +82,8 @@ const wss = new WebSocketServer({ noServer: true });
 // Handle upgrade manually to separate WebSocket traffic
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url ? request.url.split('?')[0] : '';
-  if (pathname === '/ws/live') {
+  const cleanPathname = pathname.replace(/\/+/g, '/').replace(/\/$/, '');
+  if (cleanPathname === '/ws/live') {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });
