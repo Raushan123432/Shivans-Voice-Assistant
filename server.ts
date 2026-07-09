@@ -81,12 +81,16 @@ const wss = new WebSocketServer({ noServer: true });
 
 // Handle upgrade manually to separate WebSocket traffic
 server.on('upgrade', (request, socket, head) => {
-  const pathname = request.url ? request.url.split('?')[0] : '';
-  const cleanPathname = pathname.replace(/\/+/g, '/').replace(/\/$/, '');
-  if (cleanPathname === '/ws/live') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
+  try {
+    const parsedUrl = new URL(request.url || '', 'http://localhost');
+    const cleanPathname = parsedUrl.pathname.replace(/\/+/g, '/').replace(/\/$/, '');
+    if (cleanPathname === '/ws/live') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    }
+  } catch (err) {
+    console.error('[Server WebSocket] Upgrade error:', err);
   }
   // Let other upgrade requests (like Vite HMR) pass through to other listeners
 });
@@ -119,15 +123,8 @@ wss.on('connection', async (clientWs: WSWebSocket, request) => {
   let session: any = null;
 
   try {
-    // 3. Initialize Gemini Client with mandatory telemetry user-agent
-    const ai = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
+    // 3. Initialize Gemini Client simply and securely
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     console.log(`[Server WebSocket] Connecting to Gemini Live API with voice: ${selectedVoice}, language: ${selectedLanguage}, sensitivity: ${selectedSensitivity}, speakingRate: ${speakingRate}`);
     
@@ -178,14 +175,24 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
       ? 'The user is in a noisy environment. Ignore background chatter or low whispers, and only focus on clear direct voices.'
       : 'Standard microphone thresholds apply.';
 
+    // Map client voice choices to official Gemini Live prebuilt voices
+    const voiceMap: Record<string, string> = {
+      'Zephyr': 'Puck', // Map Zephyr to Puck (well-supported masculine voice)
+      'Puck': 'Puck',
+      'Charon': 'Charon',
+      'Kore': 'Kore',
+      'Fenrir': 'Fenrir'
+    };
+    const geminiVoice = voiceMap[selectedVoice] || 'Puck';
+
     // 4. Connect to Gemini Live Session
     session = await ai.live.connect({
       model: 'gemini-3.1-flash-live-preview',
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: ['AUDIO'] as any,
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: selectedVoice }
+            prebuiltVoiceConfig: { voiceName: geminiVoice }
           }
         },
         systemInstruction: `You are ${assistantName}, an advanced and highly intelligent Windows Voice AI Assistant. Your primary goal is to control the user's computer safely, accurately, and naturally using voice commands.
@@ -810,7 +817,7 @@ LANGUAGE AND ENVIRONMENT SETTING:
       type: 'error',
       error: `Could not connect to Gemini Live vocal engine: ${err.message || err}`
     }));
-    clientWs.close();
+    clientWs.close(4000, 'Gemini connection failed');
     return;
   }
 

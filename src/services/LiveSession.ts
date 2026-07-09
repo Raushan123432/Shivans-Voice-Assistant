@@ -168,7 +168,9 @@ export class LiveSession {
         audioStreamer.stopRecording();
         audioStreamer.interrupt();
 
-        if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        const isFatalError = event.code === 1008 || event.code === 4000;
+
+        if (!isFatalError && this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.onStateChange('reconnecting');
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
           this.reconnectAttempts++;
@@ -178,7 +180,7 @@ export class LiveSession {
             this.connect();
           }, delay);
         } else {
-          this.onStateChange('disconnected');
+          this.onStateChange(isFatalError ? 'error' : 'disconnected');
         }
       };
 
