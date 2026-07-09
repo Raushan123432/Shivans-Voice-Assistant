@@ -1,0 +1,88 @@
+{
+  "expo": {
+    "name": "BABU AI",
+    "slug": "babu-ai-android",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0F2D"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.babuai.assistant",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0F2D"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.CALL_PHONE",
+        "android.permission.SEND_SMS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "whatsapp"
+            },
+            {
+              "scheme": "mailto"
+            },
+            {
+              "scheme": "tel"
+            },
+            {
+              "scheme": "sms"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow BABU AI to access your microphone for voice-to-voice conversation."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow BABU AI to access your contacts to call and message friends."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow BABU AI to read and write your calendar events."
+        }
+      ]
+    ],
+    "scheme": "babuai"
+  }
+}
