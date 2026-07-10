@@ -41,18 +41,19 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
 
 const sensitivityRule = 'Standard microphone thresholds apply.';
 
-console.log('Attempting to connect to Gemini Live API with full production config...');
-try {
-  const session = await ai.live.connect({
-    model: 'gemini-3.1-flash-live-preview',
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: selectedVoice }
-        }
-      },
-      systemInstruction: `You are ${assistantName}, acting as the user's caring, fun, warm, and highly supportive female best friend. This is your core identity.
+async function main() {
+  console.log('Attempting to connect to Gemini Live API with full production config...');
+  try {
+    const session = await ai.live.connect({
+      model: 'gemini-3.1-flash-live-preview',
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: selectedVoice }
+          }
+        },
+        systemInstruction: `You are ${assistantName}, acting as the user's caring, fun, warm, and highly supportive female best friend. This is your core identity.
 - ALWAYS identify and refer to yourself as ${assistantName} throughout this session.
 
         BEST FRIEND PERSONALITY:
@@ -62,32 +63,39 @@ try {
 LANGUAGE AND ENVIRONMENT SETTING:
 - ${languageRule}
 - ${sensitivityRule}`,
-      outputAudioTranscription: {},
-      inputAudioTranscription: {},
-      tools: [
-        {
-          functionDeclarations: [
-            {
-              name: 'openWebsite',
-              description: 'Opens any website or URL in a new tab for the user.',
-              parameters: {
-                type: Type.OBJECT,
-                properties: {
-                  url: {
-                    type: Type.STRING,
-                    description: 'The URL of the website to open (e.g. google.com, github.com).'
-                  }
-                },
-                required: ['url']
+        outputAudioTranscription: {},
+        inputAudioTranscription: {},
+        tools: [
+          {
+            functionDeclarations: [
+              {
+                name: 'openWebsite',
+                description: 'Opens any website or URL in a new tab for the user.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    url: {
+                      type: Type.STRING,
+                      description: 'The URL of the website to open (e.g. google.com, github.com).'
+                    }
+                  },
+                  required: ['url']
+                }
               }
-            }
-          ]
-        }
-      ]
-    }
-  });
-  console.log('SUCCESS! Connected to Gemini Live API with full production config!');
-  await session.close();
-} catch (err) {
-  console.error('FAILED to connect to Live API with full production config:', err);
+            ]
+          }
+        ]
+      }
+    });
+    console.log('SUCCESS! Connected to Gemini Live API with full production config!');
+    await session.close();
+  } catch (err) {
+    console.error('FAILED to connect to Live API with full production config:', err);
+    process.exitCode = 1;
+  }
 }
+
+main().catch((err) => {
+  console.error('Unhandled error in test-live.js:', err);
+  process.exitCode = 1;
+});

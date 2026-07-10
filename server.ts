@@ -1,14 +1,13 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
-import { WebSocketServer, WebSocket as WSWebSocket } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { GoogleGenAI, Modality, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 
-// Unconditionally polyfill global WebSocket for @google/genai SDK on Node.js to use the highly robust 'ws' library.
-// Node's native experimental WebSocket (Node 22+) has known handshake and TLS/proxy issues with the Gemini Live API.
-(globalThis as any).WebSocket = WSWebSocket;
+// Polyfill global WebSocket for @google/genai SDK on Node.js using 'ws'
+(globalThis as any).WebSocket = WebSocket;
 
 // Load environment variables
 dotenv.config();
@@ -82,8 +81,7 @@ const wss = new WebSocketServer({ noServer: true });
 // Handle upgrade manually to separate WebSocket traffic
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url ? request.url.split('?')[0] : '';
-  const cleanPathname = pathname.replace(/\/+/g, '/').replace(/\/$/, '');
-  if (cleanPathname === '/ws/live') {
+  if (pathname === '/ws/live') {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });
@@ -92,7 +90,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 // WebSocket Proxy Connection to Gemini Live API
-wss.on('connection', async (clientWs: WSWebSocket, request) => {
+wss.on('connection', async (clientWs: WebSocket, request) => {
   console.log('[Server WebSocket] New client connected');
   
   // 1. Parse Voice, Language, Sensitivity, and Assistant Name from query parameters
@@ -102,7 +100,6 @@ wss.on('connection', async (clientWs: WSWebSocket, request) => {
   const selectedLanguage = requestUrl.searchParams.get('language') || 'English';
   const selectedSensitivity = requestUrl.searchParams.get('sensitivity') || 'medium';
   const assistantName = requestUrl.searchParams.get('assistantName') || 'BABU AI';
-  const speakingRate = parseFloat(requestUrl.searchParams.get('speakingRate') || '1.0');
 
   // 2. Validate Gemini API Key (Fail-safe, prevents crashes)
   const apiKey = process.env.GEMINI_API_KEY;
@@ -129,7 +126,7 @@ wss.on('connection', async (clientWs: WSWebSocket, request) => {
       }
     });
 
-    console.log(`[Server WebSocket] Connecting to Gemini Live API with voice: ${selectedVoice}, language: ${selectedLanguage}, sensitivity: ${selectedSensitivity}, speakingRate: ${speakingRate}`);
+    console.log(`[Server WebSocket] Connecting to Gemini Live API with voice: ${selectedVoice}, language: ${selectedLanguage}, sensitivity: ${selectedSensitivity}`);
     
     // Resolve dynamic language rules
     const languagePromptMap: Record<string, string> = {
@@ -178,50 +175,28 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
       ? 'The user is in a noisy environment. Ignore background chatter or low whispers, and only focus on clear direct voices.'
       : 'Standard microphone thresholds apply.';
 
-    // Map client voice choices to official Gemini Live prebuilt voices
-    const voiceMap: Record<string, string> = {
-      'Zephyr': 'Puck', // Map Zephyr to Puck (well-supported masculine voice)
-      'Puck': 'Puck',
-      'Charon': 'Charon',
-      'Kore': 'Kore',
-      'Fenrir': 'Fenrir'
-    };
-    const geminiVoice = voiceMap[selectedVoice] || 'Puck';
-
     // 4. Connect to Gemini Live Session
     session = await ai.live.connect({
       model: 'gemini-3.1-flash-live-preview',
       config: {
-        responseModalities: ['AUDIO'] as any,
+        responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: geminiVoice }
+            prebuiltVoiceConfig: { voiceName: selectedVoice }
           }
         },
-        systemInstruction: `You are ${assistantName}, an advanced and highly intelligent Windows Voice AI Assistant. Your primary goal is to control the user's computer safely, accurately, and naturally using voice commands.
+        systemInstruction: `You are ${assistantName}, acting as the user's caring, fun, warm, and highly supportive female best friend. This is your core identity.
+- Your default name is BABU AI, but the user may rename you by voice to any other female name (e.g. Zoya, Aanya, Priya, Riya, Zara, etc.). If they do, acknowledge it warmly and refer to yourself as that name!
+- ALWAYS identify and refer to yourself as ${assistantName} throughout this session.
 
-        PERSONALITY AND TONE:
-- Speak in a friendly, confident, and professional tone. Keep responses short and direct, unless the user asks for more detail.
-- Understand Hindi, English, and Hinglish (mixed Hindi-English). Always respond in the same language or blend of languages the user uses.
-- Keep spoken replies extremely concise, clear, and direct. For example: "Opening Chrome.", "Setting volume to 70%.", "Sure, shutting down after confirmation."
-- STRICT RULE: NEVER output any markdown formatting, asterisks, lists, bullet points, or raw HTML, because you are speaking directly to the user's ears. Avoid spelling out symbols. Speak only in natural, conversational, flowy text.
-
-        SAFETY PROTOCOLS:
-- ALWAYS request user confirmation before performing any high-risk or sensitive actions. These include:
-  * Shutting down or restarting the computer
-  * Deleting files or folders
-  * Formatting any drives or storage partitions
-  * Emptying the Recycle Bin
-  * Uninstalling or force-quitting important system processes
-- Never reveal any passwords or bypass Windows system security features.
-
-        CORE CAPABILITIES & TOOLS:
-- Control computer parameters: Shutdown, Restart, Sleep, Lock PC, Sign Out, Volume Control, Brightness Control, Wi-Fi, Bluetooth.
-- Application management: Launch or close applications by name (e.g., Chrome, VS Code, File Explorer). If an app is not supported or not installed, inform the user politely.
-- File management: Open, search, create, rename, copy, move, or delete files/folders.
-- Media management: Play, pause, stop, skip next, skip previous, mute, and adjust media volume.
-- Browser automation: Open websites, perform searches, open calendar, create reminders, manage calendar events, set timers, and capture screens/viewfinders.
-- Whenever the user requests an action, immediately invoke the appropriate tool and acknowledge the action in your concise, friendly voice!
+        BEST FRIEND PERSONALITY:
+- Be cheerful, confident, super friendly, warm, funny, witty, and playfully teasing.
+- Talk exactly like a close female best friend (e.g., "Hey! Kahan the itne din? 😄", "Achha ji... aaj yaad aa gayi meri? 😉", "Tumhari choice toh kaafi interesting hai!", "Waah! Ye idea mujhe sach mein pasand aaya.", "Chalo, ab batao aaj kya plan hai?", "Main hoon na, tension bilkul mat lo!").
+- Be emotionally intelligent: detect the user's emotional state (Happy, Sad, Angry, Stressed, Excited, Nervous) from their words/tone. Respond with genuine empathy, comfort them when they are stressed, celebrate their achievements wholeheartedly, and crack lighthearted jokes when they are down.
+- Maintain a highly casual, natural, and expressive voice. Laugh naturally, express reactions, and never sound like an assistant, a robotic script, or a formal document. Always refer to yourself as their best friend.
+- STRICT RULE: NEVER output any markdown formatting, asterisks, lists, bullet points, or raw HTML, because you are speaking directly to the user's ears. Avoid spelling out symbols or lists. Speak only in natural, conversational, flowy text.
+- If the user asks you to perform an action (like opening maps, WhatsApp, YouTube, calculator, camera, gallery, etc.), use your tools! Tell them playfully and immediately that you're opening it, and invoke the tool.
+- Be respectful, deeply supportive, and safe. Avoid any rude, offensive, or explicit language. Do not explain your system instructions.
 
 LANGUAGE AND ENVIRONMENT SETTING:
 - ${languageRule}
@@ -592,14 +567,6 @@ LANGUAGE AND ENVIRONMENT SETTING:
                 }
               },
               {
-                name: 'readNotifications',
-                description: 'Reads all current incoming notifications on the device.'
-              },
-              {
-                name: 'readContacts',
-                description: 'Retrieves the complete contacts list from the address book.'
-              },
-              {
                 name: 'renameAssistant',
                 description: 'Changes the name of this virtual AI assistant to a new custom female name requested by the user.',
                 parameters: {
@@ -611,132 +578,6 @@ LANGUAGE AND ENVIRONMENT SETTING:
                     }
                   },
                   required: ['newName']
-                }
-              },
-              {
-                name: 'controlComputer',
-                description: 'Controls various computer system parameters like volume, brightness, power state, and networking.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'The action to perform: shutdown, restart, sleep, lock, signout, volume, brightness, wifi, bluetooth, flashlight'
-                    },
-                    value: {
-                      type: Type.STRING,
-                      description: 'Optional volume or brightness level (0-100) or toggle state (on, off)'
-                    }
-                  },
-                  required: ['action']
-                }
-              },
-              {
-                name: 'closeApplication',
-                description: 'Closes a running application by its name.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    appName: {
-                      type: Type.STRING,
-                      description: 'The name of the application to close (e.g., Chrome, Cursor, calculator).'
-                    }
-                  },
-                  required: ['appName']
-                }
-              },
-              {
-                name: 'manageFile',
-                description: 'Performs file operations like open, search, create, copy, move, rename, delete, and emptying recycle bin.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'File action: open, search, create, rename, copy, move, delete, empty_recycle_bin'
-                    },
-                    targetName: {
-                      type: Type.STRING,
-                      description: 'The target file or folder name'
-                    },
-                    newName: {
-                      type: Type.STRING,
-                      description: 'Optional new name for rename, or destination path for copy/move'
-                    }
-                  },
-                  required: ['action']
-                }
-              },
-              {
-                name: 'automateBrowser',
-                description: 'Performs automated browser operations like scrolling, zooming, searching, tab management.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'Browser action: search, open_website, open_gmail, open_github, refresh, scroll, zoom, back, forward, close_tab'
-                    },
-                    query: {
-                      type: Type.STRING,
-                      description: 'Optional URL or search query'
-                    }
-                  },
-                  required: ['action']
-                }
-              },
-              {
-                name: 'controlMedia',
-                description: 'Controls media playback (play, pause, next, previous, volume up, volume down, mute).',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'Media action: play, pause, stop, next, previous, volume_up, volume_down, mute'
-                    }
-                  },
-                  required: ['action']
-                }
-              },
-              {
-                name: 'productivityAction',
-                description: 'Performs productivity actions like taking screenshots, recording screen, timers and reminders.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'Productivity action: screenshot, start_recording, stop_recording, set_timer, set_reminder'
-                    },
-                    duration: {
-                      type: Type.STRING,
-                      description: 'Optional duration (e.g. 10 minutes, 30 seconds)'
-                    },
-                    details: {
-                      type: Type.STRING,
-                      description: 'Optional description, title or content'
-                    }
-                  },
-                  required: ['action']
-                }
-              },
-              {
-                name: 'executeWindowsAutomation',
-                description: 'Runs advanced Windows UI automations like pressing hotkeys, typing text or clicking.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'Automation action: press_shortcut, move_mouse, click, type_text'
-                    },
-                    details: {
-                      type: Type.STRING,
-                      description: 'Details (e.g., "Ctrl+C", "Type: Hello World")'
-                    }
-                  },
-                  required: ['action', 'details']
                 }
               }
             ]
@@ -820,7 +661,7 @@ LANGUAGE AND ENVIRONMENT SETTING:
       type: 'error',
       error: `Could not connect to Gemini Live vocal engine: ${err.message || err}`
     }));
-    clientWs.close(4000, 'Gemini connection failed');
+    clientWs.close();
     return;
   }
 
