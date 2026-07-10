@@ -81,16 +81,12 @@ const wss = new WebSocketServer({ noServer: true });
 
 // Handle upgrade manually to separate WebSocket traffic
 server.on('upgrade', (request, socket, head) => {
-  try {
-    const parsedUrl = new URL(request.url || '', 'http://localhost');
-    const cleanPathname = parsedUrl.pathname.replace(/\/+/g, '/').replace(/\/$/, '');
-    if (cleanPathname === '/ws/live') {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-      });
-    }
-  } catch (err) {
-    console.error('[Server WebSocket] Upgrade error:', err);
+  const pathname = request.url ? request.url.split('?')[0] : '';
+  const cleanPathname = pathname.replace(/\/+/g, '/').replace(/\/$/, '');
+  if (cleanPathname === '/ws/live') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
   }
   // Let other upgrade requests (like Vite HMR) pass through to other listeners
 });
@@ -123,8 +119,15 @@ wss.on('connection', async (clientWs: WSWebSocket, request) => {
   let session: any = null;
 
   try {
-    // 3. Initialize Gemini Client simply and securely
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    // 3. Initialize Gemini Client with mandatory telemetry user-agent
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
 
     console.log(`[Server WebSocket] Connecting to Gemini Live API with voice: ${selectedVoice}, language: ${selectedLanguage}, sensitivity: ${selectedSensitivity}, speakingRate: ${speakingRate}`);
     
