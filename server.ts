@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { GoogleGenAI, Modality, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -19,11 +20,59 @@ const server = http.createServer(app);
 // Use JSON body parser for sync endpoints
 app.use(express.json({ limit: '10mb' }));
 
+// Setup Logs Directory & Persistent File Logging
+const LOGS_DIR = path.join(process.cwd(), 'logs');
+const LOG_FILE = path.join(LOGS_DIR, 'app.log');
+
+try {
+  if (!fs.existsSync(LOGS_DIR)) {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.error('Failed to create logs directory:', e);
+}
+
+export function writeLog(level: 'INFO' | 'WARN' | 'ERROR' | 'EXCEPTION', category: string, message: string) {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] [${level}] [${category}] ${message}\n`;
+  console.log(`[${category}] ${message}`);
+  try {
+    fs.appendFileSync(LOG_FILE, logLine, 'utf8');
+  } catch (err) {
+    console.error('Failed to write to log file:', err);
+  }
+}
+
+// Log Application Startup
+writeLog('INFO', 'APPLICATION-STARTUP', 'Babu AI App environment loaded and components initialized.');
+
+// Exception & Process Lifecycle Handlers
+process.on('uncaughtException', (err) => {
+  writeLog('EXCEPTION', 'UNCAUGHT-EXCEPTION', err.stack || err.message);
+  writeLog('INFO', 'SHUTDOWN', 'Application shutting down due to uncaught exception.');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  writeLog('EXCEPTION', 'UNHANDLED-REJECTION', reason?.stack || String(reason));
+});
+
+process.on('SIGINT', () => {
+  writeLog('INFO', 'SHUTDOWN', 'SIGINT signal received. Shutting down server gracefully.');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  writeLog('INFO', 'SHUTDOWN', 'SIGTERM signal received. Shutting down server gracefully.');
+  process.exit(0);
+});
+
 // In-Memory Durable Backup Store (keyed by user email)
 const cloudBackupStore = new Map<string, { memories: any[]; chatHistory: any[] }>();
 
 // API routes first
 app.get('/api/health', (req, res) => {
+  writeLog('INFO', 'API-REQUEST', 'GET /api/health');
   const hasKey = !!process.env.GEMINI_API_KEY;
   res.json({
     status: 'ok',
@@ -32,10 +81,28 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Secure Cloud Sync GET & POST routes
+// Serve application log history dynamically to the frontend client
+app.get('/api/logs', (req, res) => {
+  writeLog('INFO', 'API-REQUEST', 'GET /api/logs');
+  try {
+    if (fs.existsSync(LOG_FILE)) {
+      const logsContent = fs.readFileSync(LOG_FILE, 'utf8');
+      res.json({ success: true, logs: logsContent });
+    } else {
+      res.json({ success: true, logs: '' });
+    }
+  } catch (err: any) {
+    writeLog('ERROR', 'API-ERROR', `Failed to read logs: ${err.message}`);
+    res.status(500).json({ error: 'Failed to read logs' });
+  }
+});
+
+// Secure Cloud Sync GET & POST routes with logging
 app.get('/api/sync', (req, res) => {
   const email = req.query.email as string;
+  writeLog('INFO', 'API-REQUEST', `GET /api/sync?email=${email || 'none'}`);
   if (!email) {
+    writeLog('WARN', 'API-WARN', 'Sync requested without email.');
     return res.status(400).json({ error: 'Email parameter is required for sync.' });
   }
   const backup = cloudBackupStore.get(email) || { memories: [], chatHistory: [] };
@@ -44,7 +111,9 @@ app.get('/api/sync', (req, res) => {
 
 app.post('/api/sync', (req, res) => {
   const { email, memories, chatHistory } = req.body;
+  writeLog('INFO', 'API-REQUEST', `POST /api/sync for email: ${email || 'none'}`);
   if (!email) {
+    writeLog('WARN', 'API-WARN', 'Sync post submitted without email.');
     return res.status(400).json({ error: 'Email is required for sync.' });
   }
 
@@ -70,7 +139,7 @@ app.post('/api/sync', (req, res) => {
   };
 
   cloudBackupStore.set(email, updatedBackup);
-  console.log(`[Cloud Sync] Synchronized ${updatedBackup.memories.length} memories and ${updatedBackup.chatHistory.length} chat history items for email: ${email}`);
+  writeLog('INFO', 'API-REQUEST', `[Cloud Sync] Synchronized ${updatedBackup.memories.length} memories and ${updatedBackup.chatHistory.length} chat history items for email: ${email}`);
 
   res.json({ success: true, message: 'Cloud backup updated successfully.' });
 });
@@ -91,7 +160,7 @@ server.on('upgrade', (request, socket, head) => {
 
 // WebSocket Proxy Connection to Gemini Live API
 wss.on('connection', async (clientWs: WebSocket, request) => {
-  console.log('[Server WebSocket] New client connected');
+  writeLog('INFO', 'AGENT-STARTUP', 'New WebSocket client connected from browser.');
   
   // 1. Parse Voice, Language, Sensitivity, and Assistant Name from query parameters
   const host = request.headers.host || 'localhost:3000';
@@ -104,7 +173,7 @@ wss.on('connection', async (clientWs: WebSocket, request) => {
   // 2. Validate Gemini API Key (Fail-safe, prevents crashes)
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('[Server WebSocket] Error: GEMINI_API_KEY is missing!');
+    writeLog('ERROR', 'AGENT-STARTUP-FAILED', 'GEMINI_API_KEY environment variable is missing.');
     clientWs.send(JSON.stringify({
       type: 'error',
       error: 'API configuration error. The host has not set the GEMINI_API_KEY in Settings > Secrets.'
@@ -113,6 +182,7 @@ wss.on('connection', async (clientWs: WebSocket, request) => {
     return;
   }
 
+  writeLog('INFO', 'AGENT-STARTUP', `Starting Gemini session for client. Assistant: "${assistantName}", Voice: ${selectedVoice}, Language: ${selectedLanguage}`);
   let session: any = null;
 
   try {
@@ -627,13 +697,13 @@ LANGUAGE AND ENVIRONMENT SETTING:
 
           // D. Handle user barge-in interruptions
           if (message.serverContent?.interrupted) {
-            console.log('[Server WebSocket] Gemini interrupted by user barge-in');
+            writeLog('INFO', 'AGENT-INTERRUPTED', 'Vocal output interrupted by user barge-in.');
             clientWs.send(JSON.stringify({ type: 'interrupted' }));
           }
 
           // E. Handle tool calls (function declarations) requested by Gemini
           if (message.toolCall?.functionCalls) {
-            console.log('[Server WebSocket] Received tool calls from Gemini:', message.toolCall.functionCalls);
+            writeLog('INFO', 'AUTOMATION-COMMAND', `Received tool/automation request: ${JSON.stringify(message.toolCall.functionCalls)}`);
             clientWs.send(JSON.stringify({
               type: 'tool_call',
               functionCalls: message.toolCall.functionCalls
@@ -641,11 +711,11 @@ LANGUAGE AND ENVIRONMENT SETTING:
           }
         },
         onclose: () => {
-          console.log('[Server WebSocket] Gemini session connection closed');
+          writeLog('INFO', 'AGENT-SHUTDOWN', 'Gemini session connection closed gracefully.');
           clientWs.send(JSON.stringify({ type: 'status', status: 'disconnected' }));
         },
         onerror: (err) => {
-          console.error('[Server WebSocket] Gemini session connection error:', err);
+          writeLog('ERROR', 'AGENT-ERROR', `Gemini session error occurred: ${err.message || err}`);
           clientWs.send(JSON.stringify({
             type: 'error',
             error: 'Babu AI vocal engine had an issue. Reconnecting...'
@@ -654,9 +724,9 @@ LANGUAGE AND ENVIRONMENT SETTING:
       }
     });
 
-    console.log('[Server WebSocket] Live Session connected successfully!');
+    writeLog('INFO', 'AGENT-STARTUP', 'Vocal Live Session connected to Gemini Live API successfully.');
   } catch (err: any) {
-    console.error('[Server WebSocket] Failed to establish Gemini Live connection:', err);
+    writeLog('ERROR', 'AGENT-STARTUP-FAILED', `Failed to establish Gemini Live connection: ${err.message || err}`);
     clientWs.send(JSON.stringify({
       type: 'error',
       error: `Could not connect to Gemini Live vocal engine: ${err.message || err}`
@@ -727,9 +797,10 @@ LANGUAGE AND ENVIRONMENT SETTING:
 
 // Setup static file serving or development middleware
 async function startServer() {
+  writeLog('INFO', 'BACKEND-STARTUP', `Initializing backend server in ${process.env.NODE_ENV || 'development'} mode.`);
   if (process.env.NODE_ENV !== 'production') {
     // 1. Mount Vite dev server middleware in local development
-    console.log('[Server] Initializing Vite development server middleware...');
+    writeLog('INFO', 'BACKEND-STARTUP', 'Loading Vite development server middleware...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'
@@ -737,7 +808,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // 2. Serve built static production bundles
-    console.log('[Server] Running in Production mode. Serving static assets...');
+    writeLog('INFO', 'BACKEND-STARTUP', 'Running in Production mode. Configured static asset serving.');
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -747,9 +818,8 @@ async function startServer() {
 
   // Listen on unified port 3000 (standard for container ingress)
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`====================================================`);
-    console.log(` BABU AI server active on http://localhost:${PORT}`);
-    console.log(`====================================================`);
+    writeLog('INFO', 'PORT-BINDING', `Server successfully bound to host 0.0.0.0, port ${PORT}`);
+    writeLog('INFO', 'BACKEND-STARTUP', `Babu AI Server fully active at http://localhost:${PORT}`);
   });
 }
 

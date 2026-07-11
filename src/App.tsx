@@ -17,6 +17,13 @@ import { ConfirmationDialog } from './components/ConfirmationDialog';
 import ToolExecutor from './services/ToolExecutor';
 import { AndroidOverlayManager } from './components/AndroidOverlayManager';
 import ChatInterface from './components/ChatInterface';
+import LogsModal from './components/LogsModal';
+
+import Sidebar from './components/Sidebar';
+import LoadingScreen from './components/LoadingScreen';
+import MemoryModal from './components/MemoryModal';
+import HistoryPanelModal from './components/HistoryPanelModal';
+import AudioUploadModal from './components/AudioUploadModal';
 
 export default function App() {
   const {
@@ -49,7 +56,16 @@ export default function App() {
   } = useAudio();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showAudioUpload, setShowAudioUpload] = useState(false);
+  const [showKeyboardInput, setShowKeyboardInput] = useState(false);
+  const [isLoadingScreen, setIsLoadingScreen] = useState(true);
+  const [keyboardText, setKeyboardText] = useState('');
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
@@ -58,7 +74,6 @@ export default function App() {
   const [overlayArgs, setOverlayArgs] = useState<any>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [activeView, setActiveView] = useState<'voice' | 'chat'>('chat');
   const [accumulatedTranscript, setAccumulatedTranscript] = useState<{ text: string; isUser: boolean } | null>(null);
   const chatWorkerRef = useRef<Worker | null>(null);
 
@@ -248,15 +263,96 @@ export default function App() {
     }
   };
 
+  const handleDownloadConversation = () => {
+    if (chatMessages.length === 0) {
+      alert("No database transcripts to export yet. Please start chatting first!");
+      return;
+    }
+    const markdownContent = chatMessages.map((msg) => {
+      const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : 'Just Now';
+      const speaker = msg.isUser ? 'USER' : assistantName.toUpperCase();
+      return `### [${time}] **${speaker}**:\n${msg.text}\n\n---\n`;
+    }).join('\n');
+    
+    const blob = new Blob([`# ${assistantName.toUpperCase()} FULL CONVERSATION DATABASE\n\nGenerated on: ${new Date().toLocaleString()}\n\n${markdownContent}`], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${assistantName.toLowerCase()}-conversation-${Date.now()}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAudioUploadComplete = (analysisResult: string) => {
+    if (chatWorkerRef.current) {
+      chatWorkerRef.current.postMessage({
+        type: 'APPEND_CHAT',
+        message: { text: analysisResult, isUser: true }
+      });
+    }
+    sendTextMessage(analysisResult);
+  };
+
+  const handleSendKeyboardMessage = () => {
+    if (!keyboardText.trim()) return;
+    const text = keyboardText.trim();
+    setKeyboardText('');
+    
+    if (chatWorkerRef.current) {
+      chatWorkerRef.current.postMessage({
+        type: 'APPEND_CHAT',
+        message: { text, isUser: true }
+      });
+    }
+    sendTextMessage(text);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <div 
       id="app-container" 
+      onMouseMove={handleMouseMove}
       className={`min-h-screen ${
         theme === 'dark' 
           ? 'artistic-bg text-zinc-100' 
           : 'bg-gradient-to-tr from-[#eceef9] via-[#f5f6ff] to-[#fcfcff] text-slate-900 light-theme'
       } flex flex-col justify-between overflow-x-hidden relative select-none font-sans transition-all duration-700`}
     >
+      
+      {/* Interactive glowing cursor hover backlight */}
+      <div 
+        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-500 opacity-25"
+        style={{
+          background: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, rgba(34, 211, 238, 0.12), transparent 80%)`
+        }}
+      />
+
+      {/* Loading Startup Hologram Screen */}
+      <AnimatePresence>
+        {isLoadingScreen && (
+          <LoadingScreen onComplete={() => setIsLoadingScreen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Collapsible Left Navigation Rail */}
+      <Sidebar
+        appState={appState}
+        assistantName={assistantName}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenLogs={() => setShowLogs(true)}
+        onOpenHelp={() => setShowHelp(true)}
+        onDownloadHistory={handleDownloadConversation}
+        onOpenMemory={() => setShowMemory(true)}
+        onOpenHistory={() => setShowHistory(true)}
+        onOpenApiSettings={() => setShowSettings(true)}
+        onOpenVoiceSettings={() => setShowSettings(true)}
+        onOpenLanguageSettings={() => setShowSettings(true)}
+      />
       
       {/* 1. Artistic Ambient Lighting (Atmospheric blurs from Design HTML) */}
       <div className="atmospheric-blur-purple top-[-100px] left-[-100px] opacity-60" />
@@ -269,6 +365,7 @@ export default function App() {
       <Header 
         appState={appState} 
         onOpenSettings={() => setShowSettings(true)} 
+        onOpenLogs={() => setShowLogs(true)}
         theme={theme}
         onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
         assistantName={assistantName}
@@ -317,131 +414,122 @@ export default function App() {
           </motion.div>
         )}
 
-        {/* Modern View Switcher (Voice / Chat) */}
-        <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 backdrop-blur-xl mb-6 z-30 shadow-lg">
-          <button
-            onClick={() => setActiveView('voice')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-              activeView === 'voice'
-                ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30 font-bold shadow-md'
-                : 'text-zinc-400 border border-transparent hover:text-zinc-200'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5" /> Voice Orb
-          </button>
-          <button
-            onClick={() => setActiveView('chat')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
-              activeView === 'chat'
-                ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30 font-bold shadow-md'
-                : 'text-zinc-400 border border-transparent hover:text-zinc-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Live Chat
-          </button>
+        {/* Dynamic Centerpiece AI Core Orb */}
+        <div className="my-auto w-full flex flex-col items-center justify-center">
+          
+          {/* Futuristic Emotion Indicator Badge */}
+          <div className="flex flex-col items-center gap-2.5 mb-4 z-30">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-xs font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
+                emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
+                emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
+                emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
+                emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
+                emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
+                'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+              }`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  emotion === 'Happy' ? 'bg-emerald-400' :
+                  emotion === 'Sad' ? 'bg-indigo-400' :
+                  emotion === 'Stressed' ? 'bg-amber-400' :
+                  emotion === 'Excited' ? 'bg-pink-400' :
+                  emotion === 'Angry' ? 'bg-rose-400' :
+                  'bg-purple-400'
+                }`} />
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                  emotion === 'Happy' ? 'bg-emerald-500' :
+                  emotion === 'Sad' ? 'bg-indigo-500' :
+                  emotion === 'Stressed' ? 'bg-amber-500' :
+                  emotion === 'Excited' ? 'bg-pink-500' :
+                  emotion === 'Angry' ? 'bg-rose-500' :
+                  'bg-purple-500'
+                }`} />
+              </span>
+              <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
+              <span className="font-bold flex items-center gap-1.5">
+                {emotion === 'Happy' ? '😊 Happy' :
+                 emotion === 'Sad' ? '😢 Sad' :
+                 emotion === 'Stressed' ? '😰 Stressed' :
+                 emotion === 'Excited' ? '🤩 Excited' :
+                 emotion === 'Angry' ? '😡 Angry' :
+                 '😌 Calm'}
+              </span>
+            </motion.div>
+
+            {/* Quick manual mood toggles to preview visual shifts */}
+            <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5 backdrop-blur-md">
+              {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
+                <button
+                  key={mood}
+                  onClick={() => changeEmotion(mood)}
+                  className={`text-[9px] font-sans px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                    emotion === mood
+                      ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 font-bold shadow-[0_2px_8px_rgba(168,85,247,0.25)]'
+                      : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5'
+                  }`}
+                >
+                  {mood}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <AssistantOrb appState={appState} emotion={emotion} />
+          
+          {/* Subtitle transcripts and Status indicators */}
+          <div className="w-full mt-4">
+            <StatusBar appState={appState} transcript={accumulatedTranscript} />
+          </div>
+
+          {/* High performance sine-wave visuals */}
+          <div className="w-full mt-4">
+            <Waveform appState={appState} />
+          </div>
+
+          {/* Central Tactile Microphone Button */}
+          <div className="mt-4 shrink-0">
+            <VoiceButton appState={appState} onClick={handleMainButtonClick} />
+          </div>
         </div>
-
-        {activeView === 'chat' ? (
-          <div className="w-full h-[65vh] max-h-[620px] flex-1 z-20">
-            <ChatInterface 
-              messages={chatMessages}
-              onSendMessage={handleSendTextMessage}
-              onClearChat={handleClearChat}
-              appState={appState}
-              onToggleVoiceMode={() => setActiveView('voice')}
-              isVoiceActive={isConnected}
-              onMicClick={handleMainButtonClick}
-            />
-          </div>
-        ) : (
-          /* Dynamic Centerpiece AI Core Orb */
-          <div className="my-auto w-full flex flex-col items-center justify-center">
-            
-            {/* Futuristic Emotion Indicator Badge */}
-            <div className="flex flex-col items-center gap-2.5 mb-4 z-30">
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-xs font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
-                  emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                  emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
-                  emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
-                  emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
-                  emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
-                  'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                }`}
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    emotion === 'Happy' ? 'bg-emerald-400' :
-                    emotion === 'Sad' ? 'bg-indigo-400' :
-                    emotion === 'Stressed' ? 'bg-amber-400' :
-                    emotion === 'Excited' ? 'bg-pink-400' :
-                    emotion === 'Angry' ? 'bg-rose-400' :
-                    'bg-purple-400'
-                  }`} />
-                  <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                    emotion === 'Happy' ? 'bg-emerald-500' :
-                    emotion === 'Sad' ? 'bg-indigo-500' :
-                    emotion === 'Stressed' ? 'bg-amber-500' :
-                    emotion === 'Excited' ? 'bg-pink-500' :
-                    emotion === 'Angry' ? 'bg-rose-500' :
-                    'bg-purple-500'
-                  }`} />
-                </span>
-                <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
-                <span className="font-bold flex items-center gap-1.5">
-                  {emotion === 'Happy' ? '😊 Happy' :
-                   emotion === 'Sad' ? '😢 Sad' :
-                   emotion === 'Stressed' ? '😰 Stressed' :
-                   emotion === 'Excited' ? '🤩 Excited' :
-                   emotion === 'Angry' ? '😡 Angry' :
-                   '😌 Calm'}
-                </span>
-              </motion.div>
-
-              {/* Quick manual mood toggles to preview visual shifts */}
-              <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5 backdrop-blur-md">
-                {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
-                  <button
-                    key={mood}
-                    onClick={() => changeEmotion(mood)}
-                    className={`text-[9px] font-sans px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
-                      emotion === mood
-                        ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 font-bold shadow-[0_2px_8px_rgba(168,85,247,0.25)]'
-                        : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5'
-                    }`}
-                  >
-                    {mood}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <AssistantOrb appState={appState} emotion={emotion} />
-            
-            {/* Subtitle transcripts and Status indicators */}
-            <div className="w-full mt-4">
-              <StatusBar appState={appState} transcript={accumulatedTranscript} />
-            </div>
-
-            {/* High performance sine-wave visuals */}
-            <div className="w-full mt-4">
-              <Waveform appState={appState} />
-            </div>
-
-            {/* Central Tactile Microphone Button */}
-            <div className="mt-4 shrink-0">
-              <VoiceButton appState={appState} onClick={handleMainButtonClick} />
-            </div>
-          </div>
-        )}
 
       </main>
 
       {/* 4. Bottom Controls Dashboard */}
-      <footer className="w-full flex flex-col items-center pb-8 pt-4 z-20 px-4">
+      <footer className="w-full flex flex-col items-center pb-8 pt-4 z-20 px-4 gap-3">
+        {/* Slide-up Glass Keyboard Input Bar */}
+        <AnimatePresence>
+          {showKeyboardInput && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 15 }}
+              className="w-full max-w-3xl z-25"
+            >
+              <div className="glass rounded-2xl p-2 bg-zinc-950/90 border border-cyan-500/20 flex gap-2 shadow-[0_0_20px_rgba(0,229,255,0.05)]">
+                <input
+                  type="text"
+                  placeholder="Type secure system command / prompt to Babu..."
+                  value={keyboardText}
+                  onChange={(e) => setKeyboardText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSendKeyboardMessage(); }}
+                  className="flex-1 bg-zinc-900/60 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/40 font-mono"
+                />
+                <button
+                  onClick={handleSendKeyboardMessage}
+                  className="px-5 rounded-xl bg-cyan-400 text-black font-mono text-xs font-extrabold hover:bg-cyan-300 transition-all cursor-pointer"
+                >
+                  RUN
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <BottomControls
           appState={appState}
           muted={muted}
@@ -449,12 +537,16 @@ export default function App() {
           currentVoice={voice}
           onToggleMute={toggleMute}
           onChangeVolume={changeVolume}
-          onReconnect={startSession}
           onSelectVoice={changeVoice}
+          onStartListening={handleMainButtonClick}
+          onStopSession={stopSession}
+          onToggleKeyboard={() => setShowKeyboardInput(!showKeyboardInput)}
+          onUploadAudio={() => setShowAudioUpload(true)}
+          onDownloadConversation={handleDownloadConversation}
         />
         
         {/* Subtle footer credits */}
-        <div className="flex items-center gap-4 mt-5 text-[10px] font-mono tracking-widest text-zinc-600 uppercase">
+        <div className="flex items-center gap-4 mt-3 text-[10px] font-mono tracking-widest text-zinc-600 uppercase">
           <span>REAL-TIME VOICE ENGINE</span>
           <span>•</span>
           <button 
@@ -851,6 +943,49 @@ export default function App() {
           setShowSettings(true);
         }}
       />
+
+      {/* 7. Persistent Diagnostics Live Logs Terminal Overlay */}
+      <AnimatePresence>
+        {showLogs && (
+          <LogsModal onClose={() => setShowLogs(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* 8. Cognitive Memories Overlay */}
+      <AnimatePresence>
+        {showMemory && (
+          <MemoryModal 
+            onClose={() => setShowMemory(false)} 
+            assistantName={assistantName}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 9. Historical Transcripts Database Overlay */}
+      <AnimatePresence>
+        {showHistory && (
+          <HistoryPanelModal
+            onClose={() => setShowHistory(false)}
+            chatMessages={chatMessages}
+            onClearHistory={() => {
+              if (chatWorkerRef.current) {
+                chatWorkerRef.current.postMessage({ type: 'CLEAR_HISTORY' });
+              }
+              setChatMessages([]);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 10. Drag-and-Drop Audio Upload Analyzer */}
+      <AnimatePresence>
+        {showAudioUpload && (
+          <AudioUploadModal
+            onClose={() => setShowAudioUpload(false)}
+            onAnalyzeComplete={handleAudioUploadComplete}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
