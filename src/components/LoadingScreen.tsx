@@ -8,7 +8,7 @@ interface LoadingScreenProps {
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('Initializing Jarvis Core Network...');
+  const [currentStep, setCurrentStep] = useState('Initializing Shivansh AI Agent Core...');
 
   const steps = [
     { threshold: 10, text: 'Resolving Secure OAuth Ingress Gateway...' },
@@ -17,7 +17,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
     { threshold: 65, text: 'Calibrating PCM 16-bit 16000Hz frequency multipliers...' },
     { threshold: 80, text: 'Establishing secure background IndexedDB chat sync...' },
     { threshold: 95, text: 'Loading 60 FPS Three.js liquid-matter neural mesh...' },
-    { threshold: 100, text: 'Babu System Calibration Complete. Welcoming User.' }
+    { threshold: 100, text: 'Shivansh System Calibration Complete. Welcoming User.' }
   ];
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
           className="space-y-1.5"
         >
           <h1 className="text-3xl font-extrabold font-mono tracking-[0.25em] text-white flex items-center justify-center gap-2">
-            BABU<span className="text-cyan-400 font-light">AI</span>
+            SHIVANSH<span className="text-cyan-400 font-light">AI</span>
           </h1>
           <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
             Professional Voice-to-Voice Assist Terminal

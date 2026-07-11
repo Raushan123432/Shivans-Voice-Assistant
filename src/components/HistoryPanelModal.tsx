@@ -112,7 +112,7 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
             <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-1.5 font-mono">
               <MessageSquare className="w-8 h-8 text-zinc-700 mb-2 animate-pulse" />
               <span>&gt; No recorded transcripts found.</span>
-              <span className="text-[10px] text-zinc-600">Start talking to Babu to compile your database transcripts.</span>
+              <span className="text-[10px] text-zinc-600">Start talking to the assistant to compile your database transcripts.</span>
             </div>
           ) : (
             filteredMessages.map((msg) => {
@@ -126,7 +126,7 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
                 >
                   <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
                     <span className="font-bold uppercase tracking-wider text-zinc-400">
-                      {isUser ? 'User Statement' : 'Babu Response'}
+                      {isUser ? 'User Statement' : 'Shivansh Response'}
                     </span>
                     <span>•</span>
                     <span className="flex items-center gap-1">

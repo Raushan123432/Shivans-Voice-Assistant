@@ -30,9 +30,9 @@ export function useLiveSession() {
   const [emotion, setEmotion] = useState<UserEmotion>('Calm');
   const [assistantName, setAssistantNameState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('jarvis_assistant_name') || 'Jarvis';
+      return localStorage.getItem('jarvis_assistant_name') || 'Shivansh AI Agent';
     }
-    return 'Jarvis';
+    return 'Shivansh AI Agent';
   });
 
   // We use refs for callback state to avoid stale closures in events

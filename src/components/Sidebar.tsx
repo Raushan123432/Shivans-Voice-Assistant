@@ -32,6 +32,7 @@ interface SidebarProps {
   onOpenApiSettings: () => void;
   onOpenVoiceSettings: () => void;
   onOpenLanguageSettings: () => void;
+  onOpenHome?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,7 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenHistory,
   onOpenApiSettings,
   onOpenVoiceSettings,
-  onOpenLanguageSettings
+  onOpenLanguageSettings,
+  onOpenHome
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
@@ -54,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'home',
       label: 'Home & Orb',
       icon: Home,
-      action: () => {},
+      action: onOpenHome || (() => {}),
       badge: appState === 'listening' ? 'LIVE' : undefined,
       color: 'text-cyan-400'
     },

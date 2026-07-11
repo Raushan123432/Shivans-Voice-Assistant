@@ -155,9 +155,14 @@ export class LiveSession {
       };
 
       this.ws.onerror = (err) => {
-        console.error('[LiveSession] WebSocket error occurred:', err);
-        this.onStateChange('error');
-        this.onError('Network connection error. Reconnecting...');
+        console.warn('[LiveSession] WebSocket error occurred:', err);
+        if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+          // Silent warning during auto-reconnection
+          console.log('[LiveSession] Handled transient socket error. Auto-reconnect is active.');
+        } else {
+          this.onStateChange('error');
+          this.onError('Network connection error. Please try again.');
+        }
       };
 
       this.ws.onclose = (event) => {

@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLogs, 
   theme, 
   onToggleTheme, 
-  assistantName = 'BABU AI' 
+  assistantName = 'Shivansh AI Agent' 
 }) => {
   const [timeStr, setTimeStr] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -130,6 +130,85 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
         )}
+
+        {/* Real-time Connection Strength Signal Bars */}
+        <div 
+          className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full glass border border-white/5 text-[11px] font-mono relative group"
+          title={
+            appState === 'connected' || appState === 'listening' || appState === 'speaking' || appState === 'idle'
+              ? 'Signal strength: Excellent'
+              : appState === 'thinking'
+              ? 'Signal strength: Good'
+              : appState === 'connecting' || appState === 'reconnecting'
+              ? 'Signal strength: Weak/Connecting'
+              : 'Signal strength: Disconnected'
+          }
+        >
+          <div className="flex items-end gap-[2px] h-3">
+            {[
+              { bar: 1, height: 'h-1.5' },
+              { bar: 2, height: 'h-2' },
+              { bar: 3, height: 'h-2.5' },
+              { bar: 4, height: 'h-3.5' }
+            ].map((item) => {
+              const activeCount = 
+                appState === 'connected' || appState === 'listening' || appState === 'speaking' || appState === 'idle'
+                  ? 4
+                  : appState === 'thinking'
+                  ? 3
+                  : appState === 'connecting' || appState === 'reconnecting'
+                  ? 2
+                  : appState === 'error'
+                  ? 1
+                  : 0;
+
+              const isActive = item.bar <= activeCount;
+              const isUnstable = appState === 'connecting' || appState === 'reconnecting' || appState === 'error';
+
+              let barColor = 'bg-zinc-700';
+              if (isActive) {
+                if (activeCount === 4) barColor = 'bg-emerald-400 shadow-[0_0_6px_#34d399]';
+                else if (activeCount === 3) barColor = 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]';
+                else if (isUnstable) barColor = 'bg-amber-400 shadow-[0_0_6px_#fbbf24] animate-pulse';
+                else barColor = 'bg-rose-500 shadow-[0_0_6px_#f87171]';
+              }
+
+              return (
+                <div 
+                  key={item.bar} 
+                  className={`w-[3px] ${item.height} rounded-t transition-all duration-300 ${barColor}`} 
+                />
+              );
+            })}
+          </div>
+          
+          <span className="text-zinc-400">
+            Signal: <span className={`font-bold ${
+              appState === 'connected' || appState === 'listening' || appState === 'speaking' || appState === 'idle'
+                ? 'text-emerald-400'
+                : appState === 'thinking'
+                ? 'text-cyan-400'
+                : appState === 'connecting' || appState === 'reconnecting'
+                ? 'text-amber-400'
+                : 'text-rose-400'
+            }`}>
+              {appState === 'connected' || appState === 'listening' || appState === 'speaking' || appState === 'idle'
+                ? 'Excellent'
+                : appState === 'thinking'
+                ? 'Good'
+                : appState === 'connecting' || appState === 'reconnecting'
+                ? 'Unstable'
+                : 'Offline'}
+            </span>
+          </span>
+
+          {/* Unstable warning float badge alert */}
+          {(appState === 'connecting' || appState === 'reconnecting' || appState === 'error') && (
+            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-amber-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-md border border-amber-400/20 shadow-lg pointer-events-none animate-bounce">
+              Connection Unstable
+            </span>
+          )}
+        </div>
 
         {/* Connection Status Badge */}
         <div className="flex items-center gap-2 px-3.5 py-2 rounded-full glass border border-white/5 text-[11px] font-mono">

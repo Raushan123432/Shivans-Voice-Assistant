@@ -24,6 +24,9 @@ import LoadingScreen from './components/LoadingScreen';
 import MemoryModal from './components/MemoryModal';
 import HistoryPanelModal from './components/HistoryPanelModal';
 import AudioUploadModal from './components/AudioUploadModal';
+import BottomNavigation from './components/BottomNavigation';
+import HomeTab from './components/HomeTab';
+import MusicTab from './components/MusicTab';
 
 export default function App() {
   const {
@@ -65,6 +68,8 @@ export default function App() {
   const [isLoadingScreen, setIsLoadingScreen] = useState(true);
   const [keyboardText, setKeyboardText] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [layoutMode, setLayoutMode] = useState<'focused' | 'dashboard'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'home' | 'voice' | 'music' | 'history' | 'settings'>('home');
 
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -343,15 +348,16 @@ export default function App() {
       <Sidebar
         appState={appState}
         assistantName={assistantName}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => setActiveTab('settings')}
         onOpenLogs={() => setShowLogs(true)}
         onOpenHelp={() => setShowHelp(true)}
         onDownloadHistory={handleDownloadConversation}
         onOpenMemory={() => setShowMemory(true)}
-        onOpenHistory={() => setShowHistory(true)}
-        onOpenApiSettings={() => setShowSettings(true)}
-        onOpenVoiceSettings={() => setShowSettings(true)}
-        onOpenLanguageSettings={() => setShowSettings(true)}
+        onOpenHistory={() => setActiveTab('history')}
+        onOpenApiSettings={() => setActiveTab('settings')}
+        onOpenVoiceSettings={() => setActiveTab('settings')}
+        onOpenLanguageSettings={() => setActiveTab('settings')}
+        onOpenHome={() => setActiveTab('home')}
       />
       
       {/* 1. Artistic Ambient Lighting (Atmospheric blurs from Design HTML) */}
@@ -372,7 +378,7 @@ export default function App() {
       />
 
       {/* 3. Middle Stage Arena */}
-      <main className="flex-1 flex flex-col items-center justify-center py-6 relative z-10 w-full max-w-4xl mx-auto px-4">
+      <main className={`flex-1 flex flex-col items-center justify-center py-6 relative z-10 w-full mx-auto px-4 transition-all duration-500 ${layoutMode === 'dashboard' ? 'max-w-7xl' : 'max-w-4xl'}`}>
         
         {/* Permission request overlay (if microphone is denied) */}
         {micPermissionGranted === false && (
@@ -414,88 +420,346 @@ export default function App() {
           </motion.div>
         )}
 
-        {/* Dynamic Centerpiece AI Core Orb */}
-        <div className="my-auto w-full flex flex-col items-center justify-center">
-          
-          {/* Futuristic Emotion Indicator Badge */}
-          <div className="flex flex-col items-center gap-2.5 mb-4 z-30">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-xs font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
-                emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
-                emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
-                emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
-                emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
-                'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-              }`}
-            >
-              <span className="relative flex h-2 w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                  emotion === 'Happy' ? 'bg-emerald-400' :
-                  emotion === 'Sad' ? 'bg-indigo-400' :
-                  emotion === 'Stressed' ? 'bg-amber-400' :
-                  emotion === 'Excited' ? 'bg-pink-400' :
-                  emotion === 'Angry' ? 'bg-rose-400' :
-                  'bg-purple-400'
-                }`} />
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                  emotion === 'Happy' ? 'bg-emerald-500' :
-                  emotion === 'Sad' ? 'bg-indigo-500' :
-                  emotion === 'Stressed' ? 'bg-amber-500' :
-                  emotion === 'Excited' ? 'bg-pink-500' :
-                  emotion === 'Angry' ? 'bg-rose-500' :
-                  'bg-purple-500'
-                }`} />
-              </span>
-              <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
-              <span className="font-bold flex items-center gap-1.5">
-                {emotion === 'Happy' ? '😊 Happy' :
-                 emotion === 'Sad' ? '😢 Sad' :
-                 emotion === 'Stressed' ? '😰 Stressed' :
-                 emotion === 'Excited' ? '🤩 Excited' :
-                 emotion === 'Angry' ? '😡 Angry' :
-                 '😌 Calm'}
-              </span>
-            </motion.div>
+        {/* 1. HOME TAB VIEW */}
+        {activeTab === 'home' && (
+          <HomeTab
+            appState={appState}
+            emotion={emotion}
+            onStartVoice={handleMainButtonClick}
+            onTriggerAction={(command) => {
+              handleSendTextMessage(command);
+            }}
+            onTriggerDirectLock={() => {
+              setActiveOverlay('lockDevice');
+              setOverlayArgs(null);
+            }}
+            assistantName={assistantName}
+            AssistantOrbComponent={AssistantOrb}
+            VoiceButtonComponent={VoiceButton}
+          />
+        )}
 
-            {/* Quick manual mood toggles to preview visual shifts */}
-            <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5 backdrop-blur-md">
-              {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
-                <button
-                  key={mood}
-                  onClick={() => changeEmotion(mood)}
-                  className={`text-[9px] font-sans px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
-                    emotion === mood
-                      ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 font-bold shadow-[0_2px_8px_rgba(168,85,247,0.25)]'
-                      : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5'
-                  }`}
-                >
-                  {mood}
-                </button>
-              ))}
+        {/* 2. VOICE TAB VIEW */}
+        {activeTab === 'voice' && (
+          <div className="w-full flex flex-col items-center">
+            {/* Dynamic Layout Selection Pill */}
+            <div className="flex items-center gap-1.5 bg-zinc-950/40 p-1 rounded-full border border-white/5 backdrop-blur-2xl mb-6 z-30 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+              <button
+                onClick={() => setLayoutMode('dashboard')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-extrabold transition-all duration-300 cursor-pointer flex items-center gap-1.5 ${
+                  layoutMode === 'dashboard'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(139,92,246,0.25)] border border-purple-400/20'
+                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Bento Dashboard
+              </button>
+              <button
+                onClick={() => setLayoutMode('focused')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-extrabold transition-all duration-300 cursor-pointer flex items-center gap-1.5 ${
+                  layoutMode === 'focused'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(139,92,246,0.25)] border border-purple-400/20'
+                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                }`}
+              >
+                <Heart className="w-3.5 h-3.5" /> Focused Orb
+              </button>
+            </div>
+
+            {layoutMode === 'dashboard' ? (
+              /* Multi-pane Bento Grid */
+              <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                {/* Left Column: Orb Console */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-between p-6 glass rounded-3xl border border-white/5 bg-zinc-950/20 shadow-2xl relative overflow-hidden min-h-[520px] lg:min-h-[580px]">
+                  <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/5 blur-[60px] rounded-full pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-36 h-36 bg-cyan-500/5 blur-[60px] rounded-full pointer-events-none" />
+                  
+                  {/* Emotion Badge */}
+                  <div className="flex flex-col items-center gap-2.5 w-full z-30">
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-[10px] font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
+                        emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
+                        emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
+                        emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
+                        emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
+                        emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
+                        'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                      }`}
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                          emotion === 'Happy' ? 'bg-emerald-400' :
+                          emotion === 'Sad' ? 'bg-indigo-400' :
+                          emotion === 'Stressed' ? 'bg-amber-400' :
+                          emotion === 'Excited' ? 'bg-pink-400' :
+                          emotion === 'Angry' ? 'bg-rose-400' :
+                          'bg-purple-400'
+                        }`} />
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                          emotion === 'Happy' ? 'bg-emerald-500' :
+                          emotion === 'Sad' ? 'bg-indigo-500' :
+                          emotion === 'Stressed' ? 'bg-amber-500' :
+                          emotion === 'Excited' ? 'bg-pink-500' :
+                          emotion === 'Angry' ? 'bg-rose-500' :
+                          'bg-purple-500'
+                        }`} />
+                      </span>
+                      <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
+                      <span className="font-bold">
+                        {emotion === 'Happy' ? '😊 Happy' :
+                         emotion === 'Sad' ? '😢 Sad' :
+                         emotion === 'Stressed' ? '😰 Stressed' :
+                         emotion === 'Excited' ? '🤩 Excited' :
+                         emotion === 'Angry' ? '😡 Angry' :
+                         '😌 Calm'}
+                      </span>
+                    </motion.div>
+
+                    {/* Manual Emotion Selector */}
+                    <div className="flex gap-1 bg-black/30 p-1 rounded-lg border border-white/5 backdrop-blur-md">
+                      {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
+                        <button
+                          key={mood}
+                          onClick={() => changeEmotion(mood)}
+                          className={`text-[8.5px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer ${
+                            emotion === mood
+                              ? 'bg-purple-500/20 text-purple-200 border-purple-500/30 font-bold'
+                              : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300'
+                          }`}
+                        >
+                          {mood}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3D Orb Stage */}
+                  <div className="w-full flex items-center justify-center my-auto scale-90 sm:scale-100 py-4 relative z-10">
+                    <AssistantOrb appState={appState} emotion={emotion} />
+                  </div>
+
+                  {/* Subtitles & Wave */}
+                  <div className="w-full flex flex-col items-center gap-1">
+                    <StatusBar appState={appState} transcript={accumulatedTranscript} />
+                    <Waveform appState={appState} />
+                  </div>
+
+                  {/* Mic key */}
+                  <div className="mt-2 shrink-0 relative z-30">
+                    <VoiceButton appState={appState} onClick={handleMainButtonClick} />
+                  </div>
+                </div>
+
+                {/* Right Column: Chat interface */}
+                <div className="lg:col-span-7 h-[520px] lg:h-[580px] flex flex-col">
+                  <ChatInterface
+                    messages={chatMessages}
+                    onSendMessage={handleSendTextMessage}
+                    onClearChat={handleClearChat}
+                    appState={appState}
+                    onToggleVoiceMode={handleMainButtonClick}
+                    isVoiceActive={appState !== 'disconnected'}
+                    onMicClick={handleMainButtonClick}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Focused minimal stage */
+              <div className="my-auto w-full flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center gap-2.5 mb-4 z-30">
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-xs font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
+                      emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
+                      emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
+                      emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
+                      emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
+                      emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
+                      'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                    }`}
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        emotion === 'Happy' ? 'bg-emerald-400' :
+                        emotion === 'Sad' ? 'bg-indigo-400' :
+                        emotion === 'Stressed' ? 'bg-amber-400' :
+                        emotion === 'Excited' ? 'bg-pink-400' :
+                        emotion === 'Angry' ? 'bg-rose-400' :
+                        'bg-purple-400'
+                      }`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                        emotion === 'Happy' ? 'bg-emerald-500' :
+                        emotion === 'Sad' ? 'bg-indigo-500' :
+                        emotion === 'Stressed' ? 'bg-amber-500' :
+                        emotion === 'Excited' ? 'bg-pink-500' :
+                        emotion === 'Angry' ? 'bg-rose-500' :
+                        'bg-purple-500'
+                      }`} />
+                    </span>
+                    <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
+                    <span className="font-bold flex items-center gap-1.5">
+                      {emotion === 'Happy' ? '😊 Happy' :
+                       emotion === 'Sad' ? '😢 Sad' :
+                       emotion === 'Stressed' ? '😰 Stressed' :
+                       emotion === 'Excited' ? '🤩 Excited' :
+                       emotion === 'Angry' ? '😡 Angry' :
+                       '😌 Calm'}
+                    </span>
+                  </motion.div>
+
+                  <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5 backdrop-blur-md">
+                    {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
+                      <button
+                        key={mood}
+                        onClick={() => changeEmotion(mood)}
+                        className={`text-[9px] font-sans px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                          emotion === mood
+                            ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 font-bold shadow-[0_2px_8px_rgba(168,85,247,0.25)]'
+                            : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5'
+                        }`}
+                      >
+                        {mood}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <AssistantOrb appState={appState} emotion={emotion} />
+                
+                <div className="w-full mt-4">
+                  <StatusBar appState={appState} transcript={accumulatedTranscript} />
+                </div>
+
+                <div className="w-full mt-4">
+                  <Waveform appState={appState} />
+                </div>
+
+                <div className="mt-4 shrink-0">
+                  <VoiceButton appState={appState} onClick={handleMainButtonClick} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2.5 MUSIC TAB VIEW */}
+        {activeTab === 'music' && (
+          <MusicTab />
+        )}
+
+        {/* 3. HISTORY TAB VIEW */}
+        {activeTab === 'history' && (
+          <div className="w-full max-w-4xl p-6 glass rounded-3xl bg-zinc-950/20 border border-white/5 relative overflow-hidden min-h-[520px] lg:min-h-[580px] flex flex-col shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-indigo-500 to-cyan-500" />
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-white/5 gap-4">
+              <div className="flex items-center gap-2">
+                <HistoryPanelModal onClose={() => setActiveTab('home')} chatMessages={chatMessages} onClearHistory={handleClearChat} />
+              </div>
             </div>
           </div>
+        )}
 
-          <AssistantOrb appState={appState} emotion={emotion} />
-          
-          {/* Subtitle transcripts and Status indicators */}
-          <div className="w-full mt-4">
-            <StatusBar appState={appState} transcript={accumulatedTranscript} />
-          </div>
+        {/* 4. SETTINGS TAB VIEW */}
+        {activeTab === 'settings' && (
+          <div className="w-full max-w-2xl p-6 glass rounded-3xl bg-zinc-950/20 border border-white/5 relative overflow-hidden min-h-[520px] lg:min-h-[580px] flex flex-col justify-between shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-fuchsia-500 to-indigo-500" />
+            
+            <div>
+              <div className="flex items-center gap-2 pb-4 border-b border-white/5">
+                <Bot className="w-5 h-5 text-purple-400 animate-pulse" />
+                <h2 className="text-base font-bold font-mono uppercase tracking-wider text-white">System Vocal Configurations</h2>
+              </div>
 
-          {/* High performance sine-wave visuals */}
-          <div className="w-full mt-4">
-            <Waveform appState={appState} />
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-cyan-300 font-bold">Assistant Name (AI Identity)</label>
+                    <input
+                      type="text"
+                      value={assistantName}
+                      onChange={(e) => changeAssistantName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
 
-          {/* Central Tactile Microphone Button */}
-          <div className="mt-4 shrink-0">
-            <VoiceButton appState={appState} onClick={handleMainButtonClick} />
+                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-purple-300 font-bold">
+                      <span>Speaking Speed Rate</span>
+                      <span className="text-white">{speakingRate}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={speakingRate}
+                      onChange={(e) => changeSpeakingRate(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-pink-300 font-bold">
+                      <span>Mic Voice Sensitivity</span>
+                      <span className="text-white">{sensitivity}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={sensitivity}
+                      onChange={(e) => changeSensitivity(e.target.value)}
+                      className="w-full accent-pink-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">Select Active AI Vocal Profile</label>
+                  <div className="flex-1 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+                    {SUPPORTED_VOICES.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => changeVoice(v.id)}
+                        className={`w-full text-left px-3 py-2 rounded-xl border flex flex-col gap-0.5 cursor-pointer transition-all ${
+                          voice === v.id
+                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                            : 'bg-black/20 border-white/5 text-zinc-400 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span>{v.name}</span>
+                          {voice === v.id && <Sparkles className="w-3 h-3 text-purple-400" />}
+                        </div>
+                        <span className="text-[9px] text-zinc-500 leading-tight">{v.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-zinc-500">
+              <span>Auto-reconnection active: <strong className="text-cyan-400 font-bold">Stable</strong></span>
+              <button
+                onClick={() => {
+                  changeAssistantName('Shivansh AI Agent');
+                  changeSpeakingRate(1.0);
+                  changeSensitivity('50');
+                  changeVoice('Puck');
+                }}
+                className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
+              >
+                Restore Defaults
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
       </main>
 
@@ -530,20 +794,29 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <BottomControls
+        {/* Master Bottom Navigation Bar */}
+        <BottomNavigation
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
           appState={appState}
-          muted={muted}
-          volume={volume}
-          currentVoice={voice}
-          onToggleMute={toggleMute}
-          onChangeVolume={changeVolume}
-          onSelectVoice={changeVoice}
-          onStartListening={handleMainButtonClick}
-          onStopSession={stopSession}
-          onToggleKeyboard={() => setShowKeyboardInput(!showKeyboardInput)}
-          onUploadAudio={() => setShowAudioUpload(true)}
-          onDownloadConversation={handleDownloadConversation}
         />
+
+        {activeTab === 'voice' && (
+          <BottomControls
+            appState={appState}
+            muted={muted}
+            volume={volume}
+            currentVoice={voice}
+            onToggleMute={toggleMute}
+            onChangeVolume={changeVolume}
+            onSelectVoice={changeVoice}
+            onStartListening={handleMainButtonClick}
+            onStopSession={stopSession}
+            onToggleKeyboard={() => setShowKeyboardInput(!showKeyboardInput)}
+            onUploadAudio={() => setShowAudioUpload(true)}
+            onDownloadConversation={handleDownloadConversation}
+          />
+        )}
         
         {/* Subtle footer credits */}
         <div className="flex items-center gap-4 mt-3 text-[10px] font-mono tracking-widest text-zinc-600 uppercase">

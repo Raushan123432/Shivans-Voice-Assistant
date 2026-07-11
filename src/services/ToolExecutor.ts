@@ -136,6 +136,11 @@ export class ToolExecutor {
           result = { success: true, appName: args.appName, message: `Attempted to open application: ${args.appName}` };
           break;
 
+        case 'lockDevice':
+          this.actionCallback?.(name, args || {});
+          result = { success: true, message: 'Android screen locked successfully.' };
+          break;
+
         case 'renameAssistant':
           this.actionCallback?.(name, args || {});
           result = { success: true, newName: args.newName, message: `My name is now changed to ${args.newName}.` };
@@ -219,7 +224,6 @@ export class ToolExecutor {
     const isSensitive = 
       (name === 'manageFile' && (args.action === 'delete' || args.action === 'empty_recycle_bin')) ||
       name === 'sendSMS' ||
-      name === 'openWhatsApp' ||
       name === 'makePayment' ||
       name === 'callContact';
 
@@ -366,10 +370,16 @@ export class ToolExecutor {
   // --- COMMUNICATION TOOLS ---
   // ==========================================
 
-  private static async openWhatsApp(number: string, message?: string): Promise<Record<string, any>> {
-    if (!number) return { error: 'No number provided' };
-    const cleanNum = number.replace(/[^\d+]/g, '');
+  private static async openWhatsApp(number?: string, message?: string): Promise<Record<string, any>> {
     const isDesktop = /Mac|Windows|Linux/i.test(navigator.userAgent) && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (!number) {
+      const generalUrl = isDesktop ? 'https://web.whatsapp.com/' : 'https://wa.me/';
+      window.open(generalUrl, '_blank', 'noopener,noreferrer');
+      return { success: true, number: '', message: 'Opened WhatsApp home page.', isDesktop };
+    }
+
+    const cleanNum = number.replace(/[^\d+]/g, '');
     
     let waUrl = '';
     if (isDesktop) {

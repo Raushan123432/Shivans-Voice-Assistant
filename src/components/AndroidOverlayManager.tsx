@@ -1117,6 +1117,91 @@ export function AndroidOverlayManager({
               </div>
             )}
 
+            {/* 11. LOCK SCREEN APP / SECURE DEVICE LOCK */}
+            {activeOverlay === 'lockDevice' && (
+              <div className="flex-1 flex flex-col bg-zinc-950 p-6 relative justify-between overflow-hidden">
+                {/* Ambient glow backdrop */}
+                <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/40 via-zinc-950 to-zinc-950 z-0 pointer-events-none" />
+                
+                {/* Stylized Floating Particles */}
+                <div className="absolute top-1/4 left-1/3 w-48 h-48 rounded-full bg-cyan-500/10 blur-[60px] animate-pulse z-0 pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/3 w-48 h-48 rounded-full bg-purple-500/10 blur-[60px] animate-pulse delay-1000 z-0 pointer-events-none" />
+
+                <div className="z-10 flex flex-col items-center text-center pt-8">
+                  {/* Lock Indicator icon */}
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: [1, 1.05, 1], opacity: 1 }}
+                    transition={{ repeat: Infinity, duration: 3 }}
+                    className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-6 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                  >
+                    <Lock className="w-5 h-5" />
+                  </motion.div>
+
+                  {/* Big Sleek Lock Clock */}
+                  <h2 className="text-5xl font-extrabold tracking-tight font-display text-white">
+                    {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </h2>
+                  <p className="text-xs font-mono font-medium text-zinc-400 mt-1 uppercase tracking-widest">
+                    {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </p>
+                  
+                  {/* Secure status */}
+                  <div className="mt-3 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-[9px] font-mono font-bold text-rose-400/90 tracking-wider flex items-center gap-1.5 uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    Device Locked via Babu AI
+                  </div>
+                </div>
+
+                {/* Babu AI Notification Card on Lock Screen */}
+                <motion.div 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="z-10 mx-2 p-3.5 rounded-2xl bg-zinc-900/90 border border-white/5 shadow-xl flex items-start gap-3 text-left mt-4 backdrop-blur-md"
+                >
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                    <Sparkles className="w-4 h-4 animate-pulse" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <span className="text-xs font-bold text-zinc-200">Babu AI Assistant</span>
+                      <span className="text-[8px] font-mono text-zinc-500">Just Now</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 leading-normal font-sans">
+                      Device locked instantly via secure voice command. Android security protocols fully active.
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Unlock Controls Area */}
+                <div className="z-10 flex flex-col items-center gap-4 pb-4">
+                  {/* Keypad and PIN Entry Simulation */}
+                  <div className="flex flex-col items-center gap-3">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-bold">
+                      Enter PIN or Scan Finger
+                    </span>
+                    
+                    {/* Glowing Fingerprint scanner button as primary trigger */}
+                    <button 
+                      onClick={onClose}
+                      className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white active:scale-95 transition-all shadow-[0_0_30px_rgba(6,182,212,0.45)] border border-cyan-300/40 relative group cursor-pointer"
+                    >
+                      <span className="absolute inset-0 rounded-full border border-cyan-400 animate-ping opacity-25" />
+                      <Key className="w-6 h-6 animate-pulse" />
+                    </button>
+                    
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 rounded-xl bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/5 text-[10px] font-mono font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
+                    >
+                      Tap to Unlock
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Android Bottom Navigation Pill Handle */}

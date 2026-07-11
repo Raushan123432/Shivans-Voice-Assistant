@@ -113,7 +113,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ appState, onClick }) =
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         className="text-[11px] font-mono tracking-widest text-zinc-400 mt-4 uppercase select-none"
       >
-        {appState === 'listening' ? 'Babu is Listening' : appState === 'speaking' ? 'Babu is Speaking' : config.label}
+        {appState === 'listening' ? 'Shivansh is Listening' : appState === 'speaking' ? 'Shivansh is Speaking' : config.label}
       </motion.p>
     </div>
   );
