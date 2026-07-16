@@ -242,7 +242,7 @@ export const MusicTab: React.FC = () => {
   const downloadTrack = (track: MusicTrack) => {
     const a = document.createElement('a');
     a.href = track.audioUrl;
-    a.download = `babu-music-${track.id}.wav`;
+    a.download = `shivansh-music-${track.id}.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

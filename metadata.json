@@ -1,6 +1,6 @@
 {
-  "name": "Jarvis",
-  "description": "Advanced Windows Voice AI Assistant",
+  "name": "Shivansh AI Agent",
+  "description": "Production-Ready Android AI Voice Assistant with native controls, Hindi, Hinglish, and English voice features",
   "requestFramePermissions": [
     "microphone"
   ],

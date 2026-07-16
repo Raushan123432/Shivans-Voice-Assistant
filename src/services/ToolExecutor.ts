@@ -123,7 +123,7 @@ export class ToolExecutor {
           break;
         case 'openSettings':
           this.actionCallback?.(name, args || {});
-          result = { success: true, message: 'Opened Babu AI Settings panel.' };
+          result = { success: true, message: 'Opened Shivansh AI Agent Settings panel.' };
           break;
         case 'openPlayStore':
           this.actionCallback?.(name, args || {});
@@ -225,7 +225,8 @@ export class ToolExecutor {
       (name === 'manageFile' && (args.action === 'delete' || args.action === 'empty_recycle_bin')) ||
       name === 'sendSMS' ||
       name === 'makePayment' ||
-      name === 'callContact';
+      name === 'callContact' ||
+      (name === 'openWhatsApp' && !!args.message);
 
     if (!isSensitive) {
       // Execute immediately and show auto-toast
@@ -565,7 +566,7 @@ export class ToolExecutor {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: title || 'Shared from Babu AI',
+          title: title || 'Shared from Shivansh AI Agent',
           text: text
         });
         return { success: true, shared: true, method: 'native' };

@@ -12,7 +12,7 @@ export class LiveSession {
   private currentVoice: VoiceType = 'Zephyr';
   private currentLanguage = 'English';
   private currentSensitivity = 'medium';
-  private currentAssistantName = 'BABU AI';
+  private currentAssistantName = 'Shivansh AI Agent';
   private currentSpeakingRate = 1.0;
   private messageQueue: string[] = [];
 
@@ -263,7 +263,7 @@ export class LiveSession {
     } catch (err: any) {
       console.error('[LiveSession] Mic recording start failed:', err);
       this.onStateChange('error');
-      this.onError('Microphone access is required to use Babu AI. Please enable mic permissions.');
+      this.onError('Microphone access is required to use Shivansh AI Agent. Please enable mic permissions.');
     }
   }
 
