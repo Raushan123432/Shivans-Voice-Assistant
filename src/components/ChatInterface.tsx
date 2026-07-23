@@ -196,139 +196,158 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </p>
           </div>
         ) : (
-          messages.map((msg, index) => {
-            const isUser = msg.isUser;
-            return (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className={`flex gap-3 w-full max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                {/* AI Avatar */}
-                {!isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 border border-purple-400/30 flex items-center justify-center text-white shadow-md shrink-0 self-end">
-                    <Bot className="w-4 h-4 animate-pulse" />
-                  </div>
-                )}
+          <AnimatePresence initial={false}>
+            {messages.map((msg, index) => {
+              const isUser = msg.isUser;
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  className={`flex gap-3 w-full max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  {/* AI Avatar */}
+                  {!isUser && (
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 border border-purple-400/30 flex items-center justify-center text-white shadow-md shrink-0 self-end">
+                      <Bot className="w-4 h-4 animate-pulse" />
+                    </div>
+                  )}
 
-                {/* Message Bubble */}
-                <div className="flex flex-col max-w-[85%] sm:max-w-[75%] gap-1">
-                  <div 
-                    className={`px-4 py-3 rounded-2xl relative group shadow-lg ${
-                      isUser 
-                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-400/20 text-zinc-100 rounded-br-sm' 
-                        : 'bg-zinc-900/60 border border-white/5 text-zinc-100 rounded-bl-sm backdrop-blur-xl'
-                    }`}
-                  >
-                    {/* Markdown rendering of text with standard clean format wrapper */}
-                    <div className="markdown-body select-text">
-                      <Markdown
-                        components={{
-                          p: ({ children }) => <p className="mb-1.5 last:mb-0 text-xs font-sans leading-relaxed break-words">{children}</p>,
-                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 text-xs font-sans">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 text-xs font-sans">{children}</ol>,
-                          li: ({ children }) => <li className="mb-1 text-xs font-sans">{children}</li>,
-                          code: ({ children }) => (
-                            <code className="bg-black/30 px-1 py-0.5 rounded font-mono text-purple-300 text-[10.5px] border border-white/5">
-                              {children}
-                            </code>
-                          ),
-                          pre: ({ children }) => (
-                            <pre className="bg-black/40 p-2 rounded-xl font-mono text-[10px] overflow-x-auto border border-white/5 my-1.5 max-w-full">
-                              {children}
-                            </pre>
-                          ),
-                          a: ({ href, children }) => (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-                              {children}
-                            </a>
-                          ),
-                          strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>
-                        }}
-                      >
-                        {msg.text}
-                      </Markdown>
+                  {/* Message Bubble */}
+                  <div className="flex flex-col max-w-[85%] sm:max-w-[75%] gap-1">
+                    <div 
+                      className={`px-4 py-3 rounded-2xl relative group shadow-lg ${
+                        isUser 
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-400/20 text-zinc-100 rounded-br-sm' 
+                          : 'bg-zinc-900/60 border border-white/5 text-zinc-100 rounded-bl-sm backdrop-blur-xl'
+                      }`}
+                    >
+                      {/* Markdown rendering of text with standard clean format wrapper */}
+                      <div className="markdown-body select-text">
+                        <Markdown
+                          components={{
+                            p: ({ children }) => <p className="mb-1.5 last:mb-0 text-xs font-sans leading-relaxed break-words">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2 text-xs font-sans">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 text-xs font-sans">{children}</ol>,
+                            li: ({ children }) => <li className="mb-1 text-xs font-sans">{children}</li>,
+                            code: ({ children }) => (
+                              <code className="bg-black/30 px-1 py-0.5 rounded font-mono text-purple-300 text-[10.5px] border border-white/5">
+                                {children}
+                              </code>
+                            ),
+                            pre: ({ children }) => (
+                              <pre className="bg-black/40 p-2 rounded-xl font-mono text-[10px] overflow-x-auto border border-white/5 my-1.5 max-w-full">
+                                {children}
+                              </pre>
+                            ),
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
+                                {children}
+                              </a>
+                            ),
+                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>
+                          }}
+                        >
+                          {msg.text}
+                        </Markdown>
+                      </div>
+
+                      {/* Quick overlay action utilities on bubble hover */}
+                      <div className={`absolute top-2 ${isUser ? 'left-[-40px]' : 'right-[-40px]'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col gap-1 z-20 bg-zinc-950/80 p-1 rounded-lg border border-white/5 backdrop-blur-md`}>
+                        <button
+                          onClick={() => copyMessageText(msg.text, msg.id)}
+                          className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                          title="Copy message"
+                        >
+                          {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                        <button
+                          onClick={() => shareMessage(msg.text)}
+                          className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                          title="Share message"
+                        >
+                          <Share2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Quick overlay action utilities on bubble hover */}
-                    <div className={`absolute top-2 ${isUser ? 'left-[-40px]' : 'right-[-40px]'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col gap-1 z-20 bg-zinc-950/80 p-1 rounded-lg border border-white/5 backdrop-blur-md`}>
-                      <button
-                        onClick={() => copyMessageText(msg.text, msg.id)}
-                        className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        title="Copy message"
-                      >
-                        {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                      <button
-                        onClick={() => shareMessage(msg.text)}
-                        className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        title="Share message"
-                      >
-                        <Share2 className="w-3 h-3" />
-                      </button>
+                    {/* Message Metadata (Timestamp + Status indicator) */}
+                    <div className={`flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 px-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                      <span>{formatTime(msg.timestamp)}</span>
+                      {isUser && (
+                        <span>
+                          {msg.status === 'sending' ? (
+                            <span className="inline-block w-2.5 h-2.5 border border-zinc-500 border-t-transparent rounded-full animate-spin" />
+                          ) : msg.status === 'sent' ? (
+                            <Check className="w-3 h-3 text-zinc-500" />
+                          ) : (
+                            <CheckCheck className="w-3 h-3 text-cyan-400 animate-pulse" />
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Message Metadata (Timestamp + Status indicator) */}
-                  <div className={`flex items-center gap-1.5 text-[9px] font-mono text-zinc-500 px-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    <span>{formatTime(msg.timestamp)}</span>
-                    {isUser && (
-                      <span>
-                        {msg.status === 'sending' ? (
-                          <span className="inline-block w-2.5 h-2.5 border border-zinc-500 border-t-transparent rounded-full animate-spin" />
-                        ) : msg.status === 'sent' ? (
-                          <Check className="w-3 h-3 text-zinc-500" />
-                        ) : (
-                          <CheckCheck className="w-3 h-3 text-cyan-400 animate-pulse" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* User Avatar */}
-                {isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 shadow-md shrink-0 self-end">
-                    <User className="w-4 h-4" />
-                  </div>
-                )}
-              </motion.div>
-            );
-          })
+                  {/* User Avatar */}
+                  {isUser && (
+                    <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 shadow-md shrink-0 self-end">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         )}
 
         {/* Real-time thinking state animations */}
-        {isThinking && (
-          <div className="flex gap-3 w-full justify-start items-center">
-            <div className="w-8 h-8 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center text-purple-400 shadow-md animate-pulse shrink-0">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="px-4 py-2.5 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-md flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-zinc-400 mr-1 animate-pulse">Thinking</span>
-              <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce" />
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {isThinking && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex gap-3 w-full justify-start items-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center text-purple-400 shadow-md animate-pulse shrink-0">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="px-4 py-2.5 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-md flex items-center gap-1.5">
+                <span className="text-[11px] font-mono text-zinc-400 mr-1 animate-pulse">Thinking</span>
+                <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 bg-purple-400 rounded-full animate-bounce" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Real-time speaking state subtitling placeholder if no text yet */}
-        {isSpeaking && messages.length > 0 && messages[messages.length - 1].isUser && (
-          <div className="flex gap-3 w-full justify-start items-center">
-            <div className="w-8 h-8 rounded-xl bg-indigo-950/40 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-md animate-bounce shrink-0">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="px-4 py-2.5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 backdrop-blur-md flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-indigo-300 mr-1">Responding...</span>
-              <span className="flex h-1.5 w-1.5 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
-              </span>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {isSpeaking && messages.length > 0 && messages[messages.length - 1].isUser && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex gap-3 w-full justify-start items-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-950/40 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-md animate-bounce shrink-0">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="px-4 py-2.5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 backdrop-blur-md flex items-center gap-1.5">
+                <span className="text-[11px] font-mono text-indigo-300 mr-1">Responding...</span>
+                <span className="flex h-1.5 w-1.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div ref={messagesEndRef} />
       </div>
