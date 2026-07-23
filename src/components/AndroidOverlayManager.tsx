@@ -90,13 +90,37 @@ export function AndroidOverlayManager({
     return () => clearInterval(loadTimer);
   }, []);
 
-  // Sync Flashlight trigger from ToolExecutor
+  // Sync Flashlight & Device Settings triggers from ToolExecutor
   useEffect(() => {
     if (activeOverlay === 'controlComputer' && overlayArgs?.action === 'flashlight') {
       const state = overlayArgs?.value === 'off' ? false : true;
       setFlashlightOn(state);
       const timeStr = new Date().toLocaleTimeString();
       setJarvisLogs(prev => [...prev, `[${timeStr}] TORCH: Phone flashlight state is now ${state ? 'ENABLED' : 'DISABLED'}.`]);
+    } else if (activeOverlay === 'controlDeviceSettings') {
+      const setting = overlayArgs?.setting;
+      const action = overlayArgs?.action;
+      const val = overlayArgs?.value;
+      const timeStr = new Date().toLocaleTimeString();
+
+      if (setting === 'wifi') {
+        setJarvisWifi(action === 'turn_on' || action === 'enable');
+      } else if (setting === 'bluetooth') {
+        setJarvisBluetooth(action === 'turn_on' || action === 'enable');
+      } else if (setting === 'flashlight') {
+        setFlashlightOn(action === 'turn_on' || action === 'enable' || action === 'toggle');
+      } else if (setting === 'volume') {
+        if (action === 'increase') setJarvisVolume(v => Math.min(100, v + 15));
+        else if (action === 'decrease') setJarvisVolume(v => Math.max(0, v - 15));
+        else if (action === 'mute' || action === 'silent') setJarvisVolume(0);
+        else if (val) setJarvisVolume(parseInt(val) || 70);
+      } else if (setting === 'brightness') {
+        if (action === 'increase') setJarvisBrightness(b => Math.min(100, b + 15));
+        else if (action === 'decrease') setJarvisBrightness(b => Math.max(10, b - 15));
+        else if (val) setJarvisBrightness(parseInt(val) || 80);
+      }
+
+      setJarvisLogs(prev => [...prev, `[${timeStr}] INTENT: Android Device Setting [${setting}] -> ${action}${val ? ' (' + val + ')' : ''}`]);
     }
   }, [activeOverlay, overlayArgs]);
 

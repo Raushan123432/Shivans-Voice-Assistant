@@ -141,6 +141,17 @@ export class ToolExecutor {
           result = { success: true, message: 'Android screen locked successfully.' };
           break;
 
+        case 'controlDeviceSettings':
+          this.actionCallback?.(name, args || {});
+          result = { 
+            success: true, 
+            setting: args.setting, 
+            action: args.action, 
+            value: args.value, 
+            message: `Android Intent executed: ${args.setting} -> ${args.action}${args.value ? ' (' + args.value + ')' : ''}` 
+          };
+          break;
+
         case 'renameAssistant':
           this.actionCallback?.(name, args || {});
           result = { success: true, newName: args.newName, message: `My name is now changed to ${args.newName}.` };
