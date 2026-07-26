@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Mic, Volume2, MessageSquare, Loader2, AlertCircle, EyeOff } from 'lucide-react';
+import { Sparkles, Mic, Volume2, MessageSquare, Loader2, AlertCircle, EyeOff, Sun } from 'lucide-react';
 import { AppState } from '../types';
 
 interface StatusBarProps {
@@ -118,7 +118,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ appState, transcript }) =>
           <span>{config.text}</span>
         </div>
 
-        {/* Live connection quality indicator (signal strength + dynamic latency) */}
+        {/* Live connection quality indicator + Keep Awake active indicator */}
         {appState !== 'disconnected' && appState !== 'connecting' && (
           <div className="flex items-center gap-2 border-l border-white/10 pl-3 text-[10px] text-zinc-400 font-bold uppercase tracking-widest select-none">
             <div className="flex items-end gap-0.5 h-3">
@@ -130,6 +130,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({ appState, transcript }) =>
             <span className={`text-[9px] font-mono ${appState === 'reconnecting' ? 'text-amber-400' : 'text-emerald-400/90 animate-pulse'}`}>
               {appState === 'reconnecting' ? 'timeout' : `${latency}ms`}
             </span>
+
+            {/* Expo Keep Awake Active Badge */}
+            {(appState === 'listening' || appState === 'thinking' || appState === 'speaking' || appState === 'connected') && (
+              <span className="flex items-center gap-1 text-[9px] text-amber-300/90 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20" title="Keep Awake active: Screen will stay on">
+                <Sun className="w-2.5 h-2.5 text-amber-400 animate-spin-slow" />
+                <span>Awake</span>
+              </span>
+            )}
           </div>
         )}
       </motion.div>

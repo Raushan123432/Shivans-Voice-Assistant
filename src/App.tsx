@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bot, Mic, ShieldAlert, Sparkles, X, Heart, HelpCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { Bot, Mic, ShieldAlert, Sparkles, X, Heart, HelpCircle, AlertTriangle, Trash2, Key } from 'lucide-react';
+import ApiKeyModal from './components/ApiKeyModal';
 
 import { useLiveSession } from './hooks/useLiveSession';
 import { useAudio } from './hooks/useAudio';
+import { useKeepAwake } from './hooks/useKeepAwake';
 import Header from './components/Header';
 import AssistantOrb from './components/AssistantOrb';
 import Starfield from './components/Starfield';
@@ -58,7 +60,11 @@ export default function App() {
     changeVolume
   } = useAudio();
 
+  // Keep screen awake using Expo Keep Awake & Web Wake Lock during active sessions
+  useKeepAwake(appState);
+
   const [showSettings, setShowSettings] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
@@ -372,6 +378,7 @@ export default function App() {
         appState={appState} 
         onOpenSettings={() => setShowSettings(true)} 
         onOpenLogs={() => setShowLogs(true)}
+        onOpenApiKey={() => setShowApiKey(true)}
         theme={theme}
         onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
         assistantName={assistantName}
@@ -1050,6 +1057,27 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Gemini API Key Configuration Section */}
+                <div className="flex flex-col gap-2 p-3.5 rounded-2xl bg-amber-950/20 border border-amber-500/20">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5" /> Gemini API Key Section
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-400">
+                      {typeof localStorage !== 'undefined' && localStorage.getItem('babu_custom_api_key') ? 'Custom Key Set' : 'Default Key'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      setShowApiKey(true);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all text-xs font-mono flex items-center justify-center gap-2 cursor-pointer font-bold"
+                  >
+                    <Key className="w-3.5 h-3.5" /> Add / Configure API Key
+                  </button>
+                </div>
+
                 {/* Storage & Memory Settings */}
                 <div className="flex flex-col gap-2 p-3.5 rounded-2xl bg-rose-950/10 border border-rose-500/10">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-rose-300 font-bold">Memory & Storage</span>
@@ -1259,6 +1287,18 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* 11. API Key Configuration Modal */}
+      <ApiKeyModal
+        isOpen={showApiKey}
+        onClose={() => setShowApiKey(false)}
+        onApiKeySaved={() => {
+          if (isConnected) {
+            stopSession();
+            setTimeout(() => startSession(), 400);
+          }
+        }}
+      />
 
     </div>
   );

@@ -265,13 +265,14 @@ wss.on('connection', async (clientWs: WebSocket, request) => {
   const selectedSensitivity = requestUrl.searchParams.get('sensitivity') || 'medium';
   const assistantName = requestUrl.searchParams.get('assistantName') || 'BABU AI';
 
-  // 2. Validate Gemini API Key (Fail-safe, prevents crashes)
-  const apiKey = process.env.GEMINI_API_KEY;
+  // 2. Validate Gemini API Key (Fail-safe, supports custom user API key)
+  const clientApiKey = requestUrl.searchParams.get('apiKey');
+  const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    writeLog('ERROR', 'AGENT-STARTUP-FAILED', 'GEMINI_API_KEY environment variable is missing.');
+    writeLog('ERROR', 'AGENT-STARTUP-FAILED', 'Gemini API key is missing both in query params and process.env.');
     clientWs.send(JSON.stringify({
       type: 'error',
-      error: 'API configuration error. The host has not set the GEMINI_API_KEY in Settings > Secrets.'
+      error: 'API Key Missing. Please click "API Key" at the top or open Settings to add your Gemini API Key.'
     }));
     clientWs.close(1008, 'API Key missing');
     return;

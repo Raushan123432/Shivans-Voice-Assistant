@@ -160,6 +160,48 @@ function App() {
   }, []);
 
 
+  // Keep Awake integration while assistant is listening or processing commands
+  useEffect(() => {
+    const active = listening || processing;
+    let wakeLockSentinel: any = null;
+
+    const acquire = async () => {
+      if (active) {
+        if ("wakeLock" in navigator) {
+          try {
+            wakeLockSentinel = await (navigator as any).wakeLock.request("screen");
+          } catch (e) {}
+        }
+        if ((window as any).AndroidBridge?.setKeepAwake) {
+          (window as any).AndroidBridge.setKeepAwake(true);
+        }
+      }
+    };
+
+    const release = async () => {
+      if (wakeLockSentinel) {
+        try {
+          await wakeLockSentinel.release();
+        } catch (e) {}
+        wakeLockSentinel = null;
+      }
+      if ((window as any).AndroidBridge?.setKeepAwake) {
+        (window as any).AndroidBridge.setKeepAwake(false);
+      }
+    };
+
+    if (active) {
+      acquire();
+    } else {
+      release();
+    }
+
+    return () => {
+      release();
+    };
+  }, [listening, processing]);
+
+
   function speak(text: string) {
 
     window.speechSynthesis.cancel();

@@ -12,7 +12,8 @@ import {
   Sparkles, 
   CheckCircle, 
   Volume2, 
-  Power
+  Power,
+  Key
 } from 'lucide-react';
 import { AppState } from '../types';
 
@@ -20,6 +21,7 @@ interface HeaderProps {
   appState: AppState;
   onOpenSettings: () => void;
   onOpenLogs: () => void;
+  onOpenApiKey?: () => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   assistantName?: string;
@@ -29,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   appState, 
   onOpenSettings, 
   onOpenLogs, 
+  onOpenApiKey,
   theme, 
   onToggleTheme, 
   assistantName = 'Shivansh AI Agent' 
@@ -294,6 +297,19 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Terminal className="w-4 h-4" />
         </button>
+
+        {/* API Key Configuration Button */}
+        {onOpenApiKey && (
+          <button
+            onClick={onOpenApiKey}
+            className="p-2.5 rounded-full glass border border-amber-500/25 text-amber-400 hover:text-amber-300 hover:border-amber-400/50 transition-all cursor-pointer flex items-center gap-1.5 px-3 hover:bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.15)]"
+            aria-label="API Key"
+            title="Add or manage Gemini API Key"
+          >
+            <Key className="w-4 h-4" />
+            <span className="hidden sm:inline text-[11px] font-mono font-bold uppercase tracking-wider">API Key</span>
+          </button>
+        )}
 
         {/* Settings button */}
         <button

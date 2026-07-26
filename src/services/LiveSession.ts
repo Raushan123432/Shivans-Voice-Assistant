@@ -72,7 +72,8 @@ export class LiveSession {
 
     // Use ws:// or wss:// depending on HTTP protocol
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/live?voice=${this.currentVoice}&language=${encodeURIComponent(this.currentLanguage)}&sensitivity=${this.currentSensitivity}&assistantName=${encodeURIComponent(this.currentAssistantName)}&speakingRate=${this.currentSpeakingRate}`;
+    const customApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('babu_custom_api_key') || '' : '';
+    const wsUrl = `${protocol}//${window.location.host}/ws/live?voice=${this.currentVoice}&language=${encodeURIComponent(this.currentLanguage)}&sensitivity=${this.currentSensitivity}&assistantName=${encodeURIComponent(this.currentAssistantName)}&speakingRate=${this.currentSpeakingRate}${customApiKey ? `&apiKey=${encodeURIComponent(customApiKey)}` : ''}`;
     
     console.log(`[LiveSession] Connecting to ${wsUrl}`);
 

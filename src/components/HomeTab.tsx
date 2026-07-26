@@ -137,7 +137,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </motion.div>
 
         {/* Shimmering, Typewritten Core Title */}
-        <h1 className="text-4xl md:text-5xl font-extrabold font-mono tracking-tight select-none flex flex-col items-center gap-1">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold font-display tracking-tight select-none flex flex-col items-center gap-1">
           <TypewriterText text={assistantName} />
           <motion.span 
             initial={{ opacity: 0 }}
