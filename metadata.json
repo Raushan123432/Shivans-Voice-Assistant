@@ -1,8 +1,9 @@
 {
-  "name": "Shivansh AI Agent",
-  "description": "Production-Ready Android AI Voice Assistant with native controls, Hindi, Hinglish, and English voice features",
+  "name": "Zoya AI",
+  "description": "Futuristic 3D AI Voice Assistant with Zoya AI character, sci-fi HUD controls, hologram platform, and cybernetic telemetry.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Home, 
+  Mic,
   Settings, 
   History, 
   Brain, 
@@ -53,9 +54,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const menuItems = [
     {
-      id: 'home',
-      label: 'Home & Orb',
-      icon: Home,
+      id: 'voice',
+      label: 'Voice Assistant',
+      icon: Mic,
       action: onOpenHome || (() => {}),
       badge: appState === 'listening' ? 'LIVE' : undefined,
       color: 'text-cyan-400'
@@ -76,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Cognitive'
     },
     {
-      id: 'voice',
+      id: 'voice_settings',
       label: 'Voice Settings',
       icon: Volume2,
       action: onOpenVoiceSettings,

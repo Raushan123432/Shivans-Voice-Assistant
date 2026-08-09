@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, X, Trash2, Search, Copy, Check, MessageSquare, ExternalLink, Calendar } from 'lucide-react';
+import { History, X, Trash2, Search, Copy, Check, MessageSquare, ExternalLink, Calendar, Sparkles, Loader2, RotateCw, FileText } from 'lucide-react';
 import { ChatMessage } from '../types';
 
 interface HistoryPanelModalProps {
@@ -17,6 +17,13 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Summarize state
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [showSummaryCard, setShowSummaryCard] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
   const filteredMessages = chatMessages.filter((msg) => {
     if (!searchQuery.trim()) return true;
     return msg.text.toLowerCase().includes(searchQuery.toLowerCase());
@@ -27,6 +34,48 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (chatMessages.length === 0) {
+      setSummaryError('No chat history available to summarize.');
+      setShowSummaryCard(true);
+      return;
+    }
+
+    setIsSummarizing(true);
+    setSummaryError(null);
+    setShowSummaryCard(true);
+
+    try {
+      const res = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: chatMessages })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to generate summary.');
+      }
+
+      setSummary(data.summary);
+    } catch (err: any) {
+      setSummaryError(err.message || 'An error occurred while summarizing.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleCopySummary = async () => {
+    if (!summary) return;
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 2000);
     } catch (e) {
       console.error(e);
     }
@@ -67,12 +116,28 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button
+              onClick={handleSummarize}
+              disabled={isSummarizing || chatMessages.length === 0}
+              className="p-2.5 rounded-xl border border-purple-500/40 bg-gradient-to-r from-purple-500/20 via-indigo-500/20 to-cyan-500/20 text-purple-200 hover:text-white hover:border-purple-400/60 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+              title="Generate AI summary of chat history"
+            >
+              {isSummarizing ? (
+                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-purple-400" />
+              )}
+              <span>Summarize</span>
+            </button>
+
             {chatMessages.length > 0 && (
               <button
                 onClick={() => {
                   if (window.confirm('Wipe out IndexedDB past transcripts permanently?')) {
                     onClearHistory();
+                    setShowSummaryCard(false);
+                    setSummary(null);
                   }
                 }}
                 className="p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/5 text-rose-300 hover:bg-rose-500/10 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold"
@@ -105,6 +170,67 @@ export const HistoryPanelModal: React.FC<HistoryPanelModalProps> = ({
             />
           </div>
         </div>
+
+        {/* AI Summary Banner Card */}
+        <AnimatePresence>
+          {showSummaryCard && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              className="mx-6 mt-4 p-4 rounded-2xl bg-gradient-to-br from-purple-950/40 via-zinc-900/90 to-indigo-950/40 border border-purple-500/30 text-xs shadow-lg relative shrink-0"
+            >
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-purple-500/20">
+                <div className="flex items-center gap-2 text-purple-300 font-mono font-bold">
+                  <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+                  <span>AI CONVERSATION SUMMARY</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {summary && (
+                    <button
+                      onClick={handleCopySummary}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors flex items-center gap-1 text-[11px] font-mono cursor-pointer"
+                      title="Copy summary"
+                    >
+                      {copiedSummary ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedSummary ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSummarize}
+                    disabled={isSummarizing}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors cursor-pointer"
+                    title="Regenerate summary"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${isSummarizing ? 'animate-spin text-purple-400' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowSummaryCard(false)}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    title="Dismiss summary"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {isSummarizing ? (
+                <div className="py-6 flex flex-col items-center justify-center gap-2 text-purple-300 font-mono">
+                  <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                  <span className="text-xs">Generating concise summary with Gemini AI...</span>
+                </div>
+              ) : summaryError ? (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-xs">
+                  {summaryError}
+                </div>
+              ) : (
+                <div className="text-zinc-200 font-sans leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-purple-900/50">
+                  {summary}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* List of Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">

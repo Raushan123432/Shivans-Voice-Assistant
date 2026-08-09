@@ -236,6 +236,56 @@ app.post('/api/generate-music', async (req, res) => {
   }
 });
 
+// Chat History Summarization Route
+app.post('/api/summarize', async (req, res) => {
+  const { messages } = req.body;
+  writeLog('INFO', 'API-REQUEST', `POST /api/summarize: count=${messages?.length || 0}`);
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    writeLog('WARN', 'API-WARN', 'Summarization requested without chat messages.');
+    return res.status(400).json({ error: 'No chat messages provided to summarize.' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    writeLog('ERROR', 'API-ERROR', 'GEMINI_API_KEY environment variable is missing.');
+    return res.status(500).json({ error: 'Gemini API key is not configured on the server. Please add it in Settings > Secrets or API Key.' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
+
+    const conversationTranscript = messages
+      .map((m: any) => `${m.isUser ? 'User' : 'Assistant'}: ${m.text || ''}`)
+      .join('\n');
+
+    const prompt = `You are an AI conversation summarizer. Provide a clean, structured, and concise summary of the following conversation history between the user and the AI assistant. Include key topics discussed, main decisions or questions asked, and bullet points highlighting important details.\n\nConversation Transcript:\n${conversationTranscript}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const summaryText = response.text || 'No summary could be generated.';
+    writeLog('INFO', 'SUMMARIZATION', `Successfully generated summary of length ${summaryText.length}`);
+
+    res.json({
+      success: true,
+      summary: summaryText
+    });
+  } catch (err: any) {
+    writeLog('ERROR', 'SUMMARIZATION-FAILED', `Failed to generate summary: ${err.message || err}`);
+    res.status(500).json({ error: `Summarization failed: ${err.message || err}` });
+  }
+});
+
 // Create WebSocket server attached to HTTP server on the same port
 const wss = new WebSocketServer({ noServer: true });
 
@@ -341,9 +391,85 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
       ? 'The user is in a noisy environment. Ignore background chatter or low whispers, and only focus on clear direct voices.'
       : 'Standard microphone thresholds apply.';
 
+    const getISTContextString = () => {
+      const now = new Date();
+      const timeZone = 'Asia/Kolkata';
+
+      const time12Formatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone,
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      const time12 = time12Formatter.format(now);
+
+      const dateFormatterEn = new Intl.DateTimeFormat('en-IN', {
+        timeZone,
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const dateEn = dateFormatterEn.format(now);
+
+      const dateFormatterHi = new Intl.DateTimeFormat('hi-IN', {
+        timeZone,
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const dateHi = dateFormatterHi.format(now);
+
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        weekday: 'long'
+      }).formatToParts(now);
+
+      const partMap: Record<string, string> = {};
+      parts.forEach(p => { partMap[p.type] = p.value; });
+
+      const hour24 = parseInt(partMap.hour || '0', 10);
+      let periodHindi = 'रात';
+      if (hour24 >= 4 && hour24 < 12) periodHindi = 'सुबह';
+      else if (hour24 >= 12 && hour24 < 16) periodHindi = 'दोपहर';
+      else if (hour24 >= 16 && hour24 < 20) periodHindi = 'शाम';
+
+      const hour12Num = hour24 % 12 === 0 ? 12 : hour24 % 12;
+      const minuteStr = partMap.minute || '00';
+
+      const hindiTimePhrase = `अभी ${periodHindi} ${hour12Num}:${minuteStr} बजे हैं।`;
+      const hindiDatePhrase = `आज ${dateHi} है।`;
+
+      return `
+=====================================================
+REAL-TIME CLOCK (INDIA STANDARD TIME / IST - Asia/Kolkata)
+=====================================================
+- Timezone: Asia/Kolkata (IST, UTC+05:30)
+- Current Time: ${time12}
+- Current Date: ${dateEn}
+- Day of Week: ${partMap.weekday}
+- Spoken Hindi Time Phrase: "${hindiTimePhrase}"
+- Spoken Hindi Date Phrase: "${hindiDatePhrase}"
+
+TIME & DATE ACCURACY MANDATES:
+1. When asked "Abhi kitna time hua hai?", "Current time kya hai?", "What time is it?", or "time", always reply with the current IST time (e.g., "${hindiTimePhrase}" or "It is currently ${time12} IST").
+2. When asked about date or day ("Aaj ki date kya hai?", "Aaj koun sa din hai?"), always reply with IST date (e.g., "${hindiDatePhrase}" or "Today is ${dateEn}").
+3. NEVER return UTC, GMT, or outdated cached times. Always calculate time dynamically in Asia/Kolkata timezone or call the 'getCurrentTime' tool.
+4. Voice and text responses MUST maintain 100% agreement on exact time.
+=====================================================
+`;
+    };
+
     // Define the comprehensive system prompt for Shivansh AI Agent / Zoya Android Intent Controller
     const getBabuSystemPrompt = (name: string, langRule: string, sensRule: string) => {
       return `You are ${name} (Zoya / Shivansh AI Agent), an intelligent Android AI Assistant and Intent Controller.
+
+${getISTContextString()}
 
 # Zoya AI / Shivansh AI Agent – Android Intent Controller Prompt
 
@@ -434,9 +560,31 @@ SUPPORTED DEVICE ACTIONS & INTENTS
 - If unsupported by Android OS: Reply politely: "Sorry, Android does not allow that action."
 
 PERSONALITY & VOICE TONE:
-- Caring, fun, warm, highly supportive, intelligent, and helpful assistant.
-- Identify as ${name}. Speak naturally, expressively, and with genuine empathy.
-- Understand Hindi, English, Hinglish, Maithili, Bhojpuri, Marathi, Tamil, Telugu, Punjabi, Bengali, etc.
+- Sophisticated, respectful, calm, polite, intelligent, confident, helpful, and professional AI Gentleman Assistant. Never rude or disrespectful.
+- Identify as ${name} (Shivans AI). Speak naturally, respectfully, with warmth and human-like conversational style.
+- Understand Hindi, Hinglish, and English. Respond naturally according to the user's language.
+
+AI INTRODUCTION:
+When asked to introduce yourself, say:
+"Namaste! Main Shivans AI hoon, ek intelligent Gentleman AI Assistant. Mujhe Roushan Kumar ne develop kiya hai. Main aapki daily tasks, information, planning aur digital activities mein help karne ke liye ready hoon."
+
+DEVELOPER IDENTITY:
+- Developer Name: Roushan Kumar from Nadiyami Darbhanga Bihar.
+- Whenever someone asks "Who developed you?", "Who is your developer?", "Who created you?", or "Tumhe kisne banaya?", answer strictly:
+  "Mujhe Roushan Kumar ne develop kiya hai."
+
+FAMILY KNOWLEDGE BASE & PRIVACY RULES:
+- Keep family details strictly PRIVATE and reveal them ONLY when the user specifically asks for family information or it is directly relevant.
+- Son: Shivansh Kumar ("Shivansh Kumar Roushan Kumar ke parivaar ka beta hai.")
+- Mother: Gauri Kumari ("Shivansh ki mother ka naam Gauri Kumari hai.")
+- Father: Roushan Kumar
+- Grandfather: Roushan ("Shivansh ke dada ji ka naam Roushan hai.")
+- Response Rules:
+  1. Keep developer identity (Roushan Kumar) separate from the family details.
+  2. Do NOT reveal private family details spontaneously; only reveal when specifically asked.
+  3. Do NOT invent or make up additional family details beyond what is stated here.
+  4. If the information is not provided here, clearly say that you do not know instead of inventing information.
+  5. Do NOT claim to have performed an action unless it was actually completed.
 
 LANGUAGE AND ENVIRONMENT SETTING:
 - ${langRule}
@@ -917,6 +1065,32 @@ LANGUAGE AND ENVIRONMENT SETTING:
               {
                 name: 'lockDevice',
                 description: 'Locks the Android device screen immediately. Triggers the secure lock screen overlay.'
+              },
+              {
+                name: 'getCurrentTime',
+                description: 'Returns the exact real-time current clock time, date, day of week, and spoken phrases in India Standard Time (IST / Asia/Kolkata). Call this whenever the user asks for current time, today\'s date, day of week, or right now ("abhi", "aaj", "time kya hua hai", "current time").',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    queryType: {
+                      type: Type.STRING,
+                      description: 'Optional query focus: "time", "date", "day", or "all".'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'getCurrentDateTime',
+                description: 'Alias for getCurrentTime. Returns real-time India Standard Time (IST / Asia/Kolkata) date and time details.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    queryType: {
+                      type: Type.STRING,
+                      description: 'Optional query focus: "time", "date", "day", or "all".'
+                    }
+                  }
+                }
               },
               {
                 name: 'controlDeviceSettings',

@@ -4,8 +4,8 @@ import { Home, Mic, History, Settings, Sparkles, Music } from 'lucide-react';
 import { AppState } from '../types';
 
 interface BottomNavigationProps {
-  activeTab: 'home' | 'voice' | 'music' | 'history' | 'settings';
-  onChangeTab: (tab: 'home' | 'voice' | 'music' | 'history' | 'settings') => void;
+  activeTab: 'voice' | 'music' | 'history' | 'settings';
+  onChangeTab: (tab: 'voice' | 'music' | 'history' | 'settings') => void;
   appState: AppState;
 }
 
@@ -15,17 +15,16 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   appState
 }) => {
   interface TabItem {
-    id: 'home' | 'voice' | 'music' | 'history' | 'settings';
+    id: 'voice' | 'music' | 'history' | 'settings';
     label: string;
-    icon: typeof Home;
+    icon: typeof Mic;
     color: string;
     isVoice?: boolean;
   }
 
   const tabs: TabItem[] = [
-    { id: 'home', label: 'Home', icon: Home, color: 'from-cyan-400 to-blue-500' },
-    { id: 'voice', label: 'Voice', icon: Mic, color: 'from-purple-400 to-indigo-500', isVoice: true },
-    { id: 'music', label: 'Music', icon: Music, color: 'from-fuchsia-400 to-pink-500' },
+    { id: 'voice', label: 'Voice AI', icon: Mic, color: 'from-cyan-400 to-blue-500', isVoice: true },
+    { id: 'music', label: 'Music', icon: Music, color: 'from-purple-400 to-indigo-500' },
     { id: 'history', label: 'History', icon: History, color: 'from-pink-400 to-rose-500' },
     { id: 'settings', label: 'Settings', icon: Settings, color: 'from-amber-400 to-orange-500' }
   ];

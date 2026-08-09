@@ -22,15 +22,29 @@ import ChatInterface from './components/ChatInterface';
 import LogsModal from './components/LogsModal';
 
 import Sidebar from './components/Sidebar';
-import LoadingScreen from './components/LoadingScreen';
 import MemoryModal from './components/MemoryModal';
 import HistoryPanelModal from './components/HistoryPanelModal';
 import AudioUploadModal from './components/AudioUploadModal';
 import BottomNavigation from './components/BottomNavigation';
-import HomeTab from './components/HomeTab';
 import MusicTab from './components/MusicTab';
 
+// Futuristic 3D Zoya AI Assistant Components
+import { BackgroundCanvas } from './components/3d/BackgroundCanvas';
+import { ZoyaAvatar3D } from './components/3d/ZoyaAvatar3D';
+import { VehicleReactor3D, VehicleType } from './components/3d/VehicleReactor3D';
+import { VoiceOrb } from './components/VoiceOrb';
+import { HUDTopBar } from './components/HUDTopBar';
+import { HUDLeftPanel } from './components/HUDLeftPanel';
+import { HUDRightPanel } from './components/HUDRightPanel';
+import { HUDBottomDock } from './components/HUDBottomDock';
+import { CursorFX } from './components/CursorFX';
+import { VisionCameraModal } from './components/VisionCameraModal';
+import { DesktopHUDModal } from './components/DesktopHUDModal';
+import { FilesModal } from './components/FilesModal';
+import { KeyboardModal } from './components/KeyboardModal';
+
 export default function App() {
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>('SPORTS');
   const {
     appState,
     errorMessage,
@@ -71,11 +85,14 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showAudioUpload, setShowAudioUpload] = useState(false);
   const [showKeyboardInput, setShowKeyboardInput] = useState(false);
-  const [isLoadingScreen, setIsLoadingScreen] = useState(true);
+  const [showVision, setShowVision] = useState(false);
+  const [showDesktop, setShowDesktop] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [keyboardText, setKeyboardText] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [layoutMode, setLayoutMode] = useState<'focused' | 'dashboard'>('dashboard');
-  const [activeTab, setActiveTab] = useState<'home' | 'voice' | 'music' | 'history' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'voice' | 'music' | 'history' | 'settings'>('voice');
 
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -328,519 +345,155 @@ export default function App() {
     <div 
       id="app-container" 
       onMouseMove={handleMouseMove}
-      className={`min-h-screen ${
-        theme === 'dark' 
-          ? 'artistic-bg text-zinc-100' 
-          : 'bg-gradient-to-tr from-[#eceef9] via-[#f5f6ff] to-[#fcfcff] text-slate-900 light-theme'
-      } flex flex-col justify-between overflow-x-hidden relative select-none font-sans transition-all duration-700`}
+      className="min-h-screen bg-black text-zinc-100 relative overflow-x-hidden font-sans select-none flex flex-col justify-between"
     >
-      
-      {/* Interactive glowing cursor hover backlight */}
-      <div 
-        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-500 opacity-25"
-        style={{
-          background: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, rgba(34, 211, 238, 0.12), transparent 80%)`
-        }}
-      />
+      {/* 1. 3D WebGL Background Canvas & Starfield */}
+      <BackgroundCanvas />
 
-      {/* Loading Startup Hologram Screen */}
-      <AnimatePresence>
-        {isLoadingScreen && (
-          <LoadingScreen onComplete={() => setIsLoadingScreen(false)} />
-        )}
-      </AnimatePresence>
+      {/* 2. Interactive Neon Cursor Glow & Trailing Particles */}
+      <CursorFX />
 
-      {/* Collapsible Left Navigation Rail */}
-      <Sidebar
+      {/* Direct Main UI Startup - Loading Screen Removed */}
+
+      {/* 4. Top Header HUD Bar */}
+      <HUDTopBar
         appState={appState}
-        assistantName={assistantName}
-        onOpenSettings={() => setActiveTab('settings')}
-        onOpenLogs={() => setShowLogs(true)}
-        onOpenHelp={() => setShowHelp(true)}
-        onDownloadHistory={handleDownloadConversation}
-        onOpenMemory={() => setShowMemory(true)}
-        onOpenHistory={() => setActiveTab('history')}
-        onOpenApiSettings={() => setActiveTab('settings')}
-        onOpenVoiceSettings={() => setActiveTab('settings')}
-        onOpenLanguageSettings={() => setActiveTab('settings')}
-        onOpenHome={() => setActiveTab('home')}
-      />
-      
-      {/* 1. Artistic Ambient Lighting (Atmospheric blurs from Design HTML) */}
-      <div className="atmospheric-blur-purple top-[-100px] left-[-100px] opacity-60" />
-      <div className="atmospheric-blur-cyan bottom-[-200px] right-[-100px] opacity-60" />
-
-      {/* 3D Cosmic Starfield background */}
-      <Starfield appState={appState} />
-
-      {/* 2. Main Header Bar */}
-      <Header 
-        appState={appState} 
-        onOpenSettings={() => setShowSettings(true)} 
+        onOpenSettings={() => setShowSettings(true)}
         onOpenLogs={() => setShowLogs(true)}
         onOpenApiKey={() => setShowApiKey(true)}
-        theme={theme}
-        onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-        assistantName={assistantName}
       />
 
-      {/* 3. Middle Stage Arena */}
-      <main className={`flex-1 flex flex-col items-center justify-center py-6 relative z-10 w-full mx-auto px-4 transition-all duration-500 ${layoutMode === 'dashboard' ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      {/* 5. Main Center Stage 3-Column Sci-Fi Grid */}
+      <main className="w-full max-w-7xl mx-auto px-4 py-4 relative z-20 flex flex-col lg:flex-row gap-6 items-start justify-between flex-1">
         
-        {/* Permission request overlay (if microphone is denied) */}
-        {micPermissionGranted === false && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md p-6 rounded-3xl bg-zinc-950/80 border border-red-500/20 backdrop-blur-2xl shadow-2xl flex flex-col items-center text-center gap-4 mb-6 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-500 to-rose-600" />
-            <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
-              <ShieldAlert className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-bold">Microphone Access Needed</h3>
-            <p className="text-zinc-400 text-xs leading-relaxed font-mono">
-              Babu AI is a real-time Voice-to-Voice assistant. Without microphone permissions, it cannot hear your voice.
-            </p>
-            <button
-              onClick={requestMicPermission}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 text-xs font-mono font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-            >
-              <Mic className="w-4 h-4" /> Grant Microphone Access
-            </button>
-          </motion.div>
-        )}
+        {/* Left Column: Quick Action Glass Cards */}
+        <HUDLeftPanel
+          activeTab={activeTab}
+          onSelectTab={(tab) => setActiveTab(tab as any)}
+          onOpenChat={() => setShowChat(true)}
+          onOpenFiles={() => setShowFiles(true)}
+          onOpenDesktop={() => setShowDesktop(true)}
+          onOpenVision={() => setShowVision(true)}
+          onOpenHistory={() => setShowHistory(true)}
+          onOpenMemory={() => setShowMemory(true)}
+          onOpenSettings={() => setShowSettings(true)}
+          onTriggerCommand={(cmd) => handleSendTextMessage(cmd)}
+        />
 
-        {/* Global Connection / WebSocket Error Display Box */}
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="w-full max-w-md px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-3 text-xs mb-6 font-mono relative overflow-hidden"
-          >
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <div className="font-bold uppercase tracking-wider mb-0.5">Vocal Engine Error</div>
-              <div>{errorMessage}</div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 1. HOME TAB VIEW */}
-        {activeTab === 'home' && (
-          <HomeTab
-            appState={appState}
-            emotion={emotion}
-            onStartVoice={handleMainButtonClick}
-            onTriggerAction={(command) => {
-              handleSendTextMessage(command);
-            }}
-            onTriggerDirectLock={() => {
-              setActiveOverlay('lockDevice');
-              setOverlayArgs(null);
-            }}
-            assistantName={assistantName}
-            AssistantOrbComponent={AssistantOrb}
-            VoiceButtonComponent={VoiceButton}
-          />
-        )}
-
-        {/* 2. VOICE TAB VIEW */}
-        {activeTab === 'voice' && (
-          <div className="w-full flex flex-col items-center">
-            {/* Dynamic Layout Selection Pill */}
-            <div className="flex items-center gap-1.5 bg-zinc-950/40 p-1 rounded-full border border-white/5 backdrop-blur-2xl mb-6 z-30 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
-              <button
-                onClick={() => setLayoutMode('dashboard')}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-extrabold transition-all duration-300 cursor-pointer flex items-center gap-1.5 ${
-                  layoutMode === 'dashboard'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(139,92,246,0.25)] border border-purple-400/20'
-                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" /> Bento Dashboard
-              </button>
-              <button
-                onClick={() => setLayoutMode('focused')}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-extrabold transition-all duration-300 cursor-pointer flex items-center gap-1.5 ${
-                  layoutMode === 'focused'
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(139,92,246,0.25)] border border-purple-400/20'
-                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-                }`}
-              >
-                <Heart className="w-3.5 h-3.5" /> Focused Orb
-              </button>
-            </div>
-
-            {layoutMode === 'dashboard' ? (
-              /* Multi-pane Bento Grid */
-              <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                {/* Left Column: Orb Console */}
-                <div className="lg:col-span-5 flex flex-col items-center justify-between p-6 glass rounded-3xl border border-white/5 bg-zinc-950/20 shadow-2xl relative overflow-hidden min-h-[520px] lg:min-h-[580px]">
-                  <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/5 blur-[60px] rounded-full pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 w-36 h-36 bg-cyan-500/5 blur-[60px] rounded-full pointer-events-none" />
-                  
-                  {/* Emotion Badge */}
-                  <div className="flex flex-col items-center gap-2.5 w-full z-30">
-                    <motion.div
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-[10px] font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
-                        emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                        emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
-                        emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
-                        emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
-                        emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
-                        'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                      }`}
-                    >
-                      <span className="relative flex h-2 w-2">
-                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                          emotion === 'Happy' ? 'bg-emerald-400' :
-                          emotion === 'Sad' ? 'bg-indigo-400' :
-                          emotion === 'Stressed' ? 'bg-amber-400' :
-                          emotion === 'Excited' ? 'bg-pink-400' :
-                          emotion === 'Angry' ? 'bg-rose-400' :
-                          'bg-purple-400'
-                        }`} />
-                        <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                          emotion === 'Happy' ? 'bg-emerald-500' :
-                          emotion === 'Sad' ? 'bg-indigo-500' :
-                          emotion === 'Stressed' ? 'bg-amber-500' :
-                          emotion === 'Excited' ? 'bg-pink-500' :
-                          emotion === 'Angry' ? 'bg-rose-500' :
-                          'bg-purple-500'
-                        }`} />
-                      </span>
-                      <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
-                      <span className="font-bold">
-                        {emotion === 'Happy' ? '😊 Happy' :
-                         emotion === 'Sad' ? '😢 Sad' :
-                         emotion === 'Stressed' ? '😰 Stressed' :
-                         emotion === 'Excited' ? '🤩 Excited' :
-                         emotion === 'Angry' ? '😡 Angry' :
-                         '😌 Calm'}
-                      </span>
-                    </motion.div>
-
-                    {/* Manual Emotion Selector */}
-                    <div className="flex gap-1 bg-black/30 p-1 rounded-lg border border-white/5 backdrop-blur-md">
-                      {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
-                        <button
-                          key={mood}
-                          onClick={() => changeEmotion(mood)}
-                          className={`text-[8.5px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer ${
-                            emotion === mood
-                              ? 'bg-purple-500/20 text-purple-200 border-purple-500/30 font-bold'
-                              : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300'
-                          }`}
-                        >
-                          {mood}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3D Orb Stage */}
-                  <div className="w-full flex items-center justify-center my-auto scale-90 sm:scale-100 py-4 relative z-10">
-                    <AssistantOrb appState={appState} emotion={emotion} />
-                  </div>
-
-                  {/* Subtitles & Wave */}
-                  <div className="w-full flex flex-col items-center gap-1">
-                    <StatusBar appState={appState} transcript={accumulatedTranscript} />
-                    <Waveform appState={appState} />
-                  </div>
-
-                  {/* Mic key */}
-                  <div className="mt-2 shrink-0 relative z-30">
-                    <VoiceButton appState={appState} onClick={handleMainButtonClick} />
-                  </div>
-                </div>
-
-                {/* Right Column: Chat interface */}
-                <div className="lg:col-span-7 h-[520px] lg:h-[580px] flex flex-col">
-                  <ChatInterface
-                    messages={chatMessages}
-                    onSendMessage={handleSendTextMessage}
-                    onClearChat={handleClearChat}
-                    appState={appState}
-                    onToggleVoiceMode={handleMainButtonClick}
-                    isVoiceActive={appState !== 'disconnected'}
-                    onMicClick={handleMainButtonClick}
-                  />
-                </div>
-              </div>
-            ) : (
-              /* Focused minimal stage */
-              <div className="my-auto w-full flex flex-col items-center justify-center">
-                <div className="flex flex-col items-center gap-2.5 mb-4 z-30">
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-xl text-xs font-mono font-medium uppercase tracking-wider transition-all duration-500 ${
-                      emotion === 'Happy' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]' :
-                      emotion === 'Sad' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]' :
-                      emotion === 'Stressed' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]' :
-                      emotion === 'Excited' ? 'bg-pink-500/10 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.15)]' :
-                      emotion === 'Angry' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' :
-                      'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                    }`}
-                  >
-                    <span className="relative flex h-2 w-2">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                        emotion === 'Happy' ? 'bg-emerald-400' :
-                        emotion === 'Sad' ? 'bg-indigo-400' :
-                        emotion === 'Stressed' ? 'bg-amber-400' :
-                        emotion === 'Excited' ? 'bg-pink-400' :
-                        emotion === 'Angry' ? 'bg-rose-400' :
-                        'bg-purple-400'
-                      }`} />
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                        emotion === 'Happy' ? 'bg-emerald-500' :
-                        emotion === 'Sad' ? 'bg-indigo-500' :
-                        emotion === 'Stressed' ? 'bg-amber-500' :
-                        emotion === 'Excited' ? 'bg-pink-500' :
-                        emotion === 'Angry' ? 'bg-rose-500' :
-                        'bg-purple-500'
-                      }`} />
-                    </span>
-                    <span className="text-zinc-500 font-bold mr-0.5">User Emotion:</span>
-                    <span className="font-bold flex items-center gap-1.5">
-                      {emotion === 'Happy' ? '😊 Happy' :
-                       emotion === 'Sad' ? '😢 Sad' :
-                       emotion === 'Stressed' ? '😰 Stressed' :
-                       emotion === 'Excited' ? '🤩 Excited' :
-                       emotion === 'Angry' ? '😡 Angry' :
-                       '😌 Calm'}
-                    </span>
-                  </motion.div>
-
-                  <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5 backdrop-blur-md">
-                    {(['Calm', 'Happy', 'Sad', 'Stressed', 'Excited', 'Angry'] as const).map((mood) => (
-                      <button
-                        key={mood}
-                        onClick={() => changeEmotion(mood)}
-                        className={`text-[9px] font-sans px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
-                          emotion === mood
-                            ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 font-bold shadow-[0_2px_8px_rgba(168,85,247,0.25)]'
-                            : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5'
-                        }`}
-                      >
-                        {mood}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <AssistantOrb appState={appState} emotion={emotion} />
-                
-                <div className="w-full mt-4">
-                  <StatusBar appState={appState} transcript={accumulatedTranscript} />
-                </div>
-
-                <div className="w-full mt-4">
-                  <Waveform appState={appState} />
-                </div>
-
-                <div className="mt-4 shrink-0">
-                  <VoiceButton appState={appState} onClick={handleMainButtonClick} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 2.5 MUSIC TAB VIEW */}
-        {activeTab === 'music' && (
-          <MusicTab />
-        )}
-
-        {/* 3. HISTORY TAB VIEW */}
-        {activeTab === 'history' && (
-          <div className="w-full max-w-4xl p-6 glass rounded-3xl bg-zinc-950/20 border border-white/5 relative overflow-hidden min-h-[520px] lg:min-h-[580px] flex flex-col shadow-2xl">
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-indigo-500 to-cyan-500" />
-            
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-white/5 gap-4">
-              <div className="flex items-center gap-2">
-                <HistoryPanelModal onClose={() => setActiveTab('home')} chatMessages={chatMessages} onClearHistory={handleClearChat} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 4. SETTINGS TAB VIEW */}
-        {activeTab === 'settings' && (
-          <div className="w-full max-w-2xl p-6 glass rounded-3xl bg-zinc-950/20 border border-white/5 relative overflow-hidden min-h-[520px] lg:min-h-[580px] flex flex-col justify-between shadow-2xl">
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-400 via-fuchsia-500 to-indigo-500" />
-            
-            <div>
-              <div className="flex items-center gap-2 pb-4 border-b border-white/5">
-                <Bot className="w-5 h-5 text-purple-400 animate-pulse" />
-                <h2 className="text-base font-bold font-mono uppercase tracking-wider text-white">System Vocal Configurations</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                    <label className="text-[10px] font-mono uppercase tracking-wider text-cyan-300 font-bold">Assistant Name (AI Identity)</label>
-                    <input
-                      type="text"
-                      value={assistantName}
-                      onChange={(e) => changeAssistantName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                    <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-purple-300 font-bold">
-                      <span>Speaking Speed Rate</span>
-                      <span className="text-white">{speakingRate}x</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="2.0"
-                      step="0.1"
-                      value={speakingRate}
-                      onChange={(e) => changeSpeakingRate(parseFloat(e.target.value))}
-                      className="w-full accent-cyan-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                    <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-wider text-pink-300 font-bold">
-                      <span>Mic Voice Sensitivity</span>
-                      <span className="text-white">{sensitivity}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={sensitivity}
-                      onChange={(e) => changeSensitivity(e.target.value)}
-                      className="w-full accent-pink-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">Select Active AI Vocal Profile</label>
-                  <div className="flex-1 overflow-y-auto space-y-2 max-h-[220px] pr-1">
-                    {SUPPORTED_VOICES.map((v) => (
-                      <button
-                        key={v.id}
-                        onClick={() => changeVoice(v.id)}
-                        className={`w-full text-left px-3 py-2 rounded-xl border flex flex-col gap-0.5 cursor-pointer transition-all ${
-                          voice === v.id
-                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
-                            : 'bg-black/20 border-white/5 text-zinc-400 hover:bg-white/5'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span>{v.name}</span>
-                          {voice === v.id && <Sparkles className="w-3 h-3 text-purple-400" />}
-                        </div>
-                        <span className="text-[9px] text-zinc-500 leading-tight">{v.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-zinc-500">
-              <span>Auto-reconnection active: <strong className="text-cyan-400 font-bold">Stable</strong></span>
-              <button
-                onClick={() => {
-                  changeAssistantName('Shivansh AI Agent');
-                  changeSpeakingRate(1.0);
-                  changeSensitivity('50');
-                  changeVoice('Puck');
-                }}
-                className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
-              >
-                Restore Defaults
-              </button>
-            </div>
-          </div>
-        )}
-
-      </main>
-
-      {/* 4. Bottom Controls Dashboard */}
-      <footer className="w-full flex flex-col items-center pb-8 pt-4 z-20 px-4 gap-3">
-        {/* Slide-up Glass Keyboard Input Bar */}
-        <AnimatePresence>
-          {showKeyboardInput && (
+        {/* Center Stage Arena: 3D Holographic Vehicle Reactor & Shivans AI Voice Controls */}
+        <div className="flex-1 w-full flex flex-col items-center justify-center relative min-h-[480px]">
+          
+          {/* Permission request overlay (if microphone is denied) */}
+          {micPermissionGranted === false && (
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 15 }}
-              className="w-full max-w-3xl z-25"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md p-6 rounded-3xl bg-zinc-950/80 border border-red-500/20 backdrop-blur-2xl shadow-2xl flex flex-col items-center text-center gap-4 mb-6 relative overflow-hidden z-30"
             >
-              <div className="glass rounded-2xl p-2 bg-zinc-950/90 border border-cyan-500/20 flex gap-2 shadow-[0_0_20px_rgba(0,229,255,0.05)]">
-                <input
-                  type="text"
-                  placeholder="Type secure system command / prompt to Babu..."
-                  value={keyboardText}
-                  onChange={(e) => setKeyboardText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSendKeyboardMessage(); }}
-                  className="flex-1 bg-zinc-900/60 border border-white/5 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/40 font-mono"
-                />
-                <button
-                  onClick={handleSendKeyboardMessage}
-                  className="px-5 rounded-xl bg-cyan-400 text-black font-mono text-xs font-extrabold hover:bg-cyan-300 transition-all cursor-pointer"
-                >
-                  RUN
-                </button>
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-500 to-rose-600" />
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Microphone Access Needed</h3>
+              <p className="text-zinc-400 text-xs leading-relaxed font-mono">
+                Shivans AI is a real-time Voice-to-Voice assistant. Without microphone permissions, he cannot hear your commands.
+              </p>
+              <button
+                onClick={requestMicPermission}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-xs font-mono font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-lg text-white"
+              >
+                <Mic className="w-4 h-4" /> Grant Microphone Access
+              </button>
+            </motion.div>
+          )}
+
+          {/* Global Connection / WebSocket Error Display Box */}
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="w-full max-w-md px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-3 text-xs mb-6 font-mono relative overflow-hidden z-30"
+            >
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-bold uppercase tracking-wider mb-0.5">Vocal Engine Error</div>
+                <div>{errorMessage}</div>
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {/* Master Bottom Navigation Bar */}
-        <BottomNavigation
-          activeTab={activeTab}
-          onChangeTab={setActiveTab}
-          appState={appState}
-        />
-
-        {activeTab === 'voice' && (
-          <BottomControls
-            appState={appState}
-            muted={muted}
-            volume={volume}
-            currentVoice={voice}
-            onToggleMute={toggleMute}
-            onChangeVolume={changeVolume}
-            onSelectVoice={changeVoice}
-            onStartListening={handleMainButtonClick}
-            onStopSession={stopSession}
-            onToggleKeyboard={() => setShowKeyboardInput(!showKeyboardInput)}
-            onUploadAudio={() => setShowAudioUpload(true)}
-            onDownloadConversation={handleDownloadConversation}
+          {/* 3D Holographic Vehicle Reactor Core */}
+          <VehicleReactor3D
+            appState={(['listening', 'thinking', 'speaking', 'error'].includes(appState) ? appState : 'idle') as any}
+            voiceLevel={volume || 0.3}
+            selectedVehicle={selectedVehicle}
+            onSelectVehicle={setSelectedVehicle}
+            onSelectHoloRing={(label) => handleSendTextMessage(`Activate ${label}`)}
           />
-        )}
-        
-        {/* Subtle footer credits */}
-        <div className="flex items-center gap-4 mt-3 text-[10px] font-mono tracking-widest text-zinc-600 uppercase">
-          <span>REAL-TIME VOICE ENGINE</span>
-          <span>•</span>
-          <button 
-            onClick={() => setShowHelp(true)} 
-            className="hover:text-cyan-400 transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <HelpCircle className="w-3.5 h-3.5" /> Quick Guide
-          </button>
-          <span>•</span>
-          <span className="flex items-center gap-0.5 text-zinc-600">
-            CRAFTED WITH <Heart className="w-2.5 h-2.5 text-rose-500 animate-pulse fill-rose-500" /> FOR YOU
-          </span>
+
+          <VoiceOrb
+            appState={(['listening', 'thinking', 'speaking', 'error'].includes(appState) ? appState : 'idle') as any}
+            voiceLevel={volume || 0.3}
+            onToggleVoice={handleMainButtonClick}
+          />
+
+          {/* Real-time Subtitle / Transcript Banner */}
+          {accumulatedTranscript && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mt-3 px-5 py-2.5 rounded-2xl bg-zinc-950/90 border border-cyan-500/30 backdrop-blur-xl text-xs font-mono text-cyan-200 max-w-xl text-center shadow-[0_0_20px_rgba(6,182,212,0.2)] z-30"
+            >
+              <span className="font-bold text-cyan-400 mr-2">
+                {accumulatedTranscript.isUser ? 'YOU:' : 'SHIVANS AI:'}
+              </span>
+              <span>{accumulatedTranscript.text}</span>
+            </motion.div>
+          )}
+
+          {/* Quick Voice Command Chips */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 max-w-lg z-30">
+            {[
+              'Hey Shivans, introduce yourself',
+              'Who developed you?',
+              'Switch vehicle to SPORTS',
+              'What time is it right now?',
+              'Set climate temp to 22°C'
+            ].map((cmd, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSendTextMessage(cmd)}
+                className="px-3 py-1 rounded-full bg-slate-900/80 border border-cyan-500/20 hover:border-cyan-400/60 hover:bg-cyan-500/10 text-[11px] font-mono text-cyan-200 transition-all cursor-pointer shadow-sm"
+              >
+                💬 "{cmd}"
+              </button>
+            ))}
+          </div>
         </div>
-      </footer>
+
+        {/* Right Column: Live AI Telemetry & Vehicle Stats */}
+        <HUDRightPanel
+          appState={appState}
+          emotion={emotion}
+          voiceLevel={volume || 0.35}
+          vehicleModel={selectedVehicle}
+        />
+      </main>
+
+      {/* Floating Bottom Sci-Fi Glass Dock */}
+      <HUDBottomDock
+        appState={appState}
+        muted={muted}
+        onToggleMute={toggleMute}
+        onToggleVoice={handleMainButtonClick}
+        onOpenKeyboard={() => setShowKeyboardInput(true)}
+        onOpenVision={() => setShowVision(true)}
+        onOpenFiles={() => setShowFiles(true)}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenMemory={() => setShowMemory(true)}
+      />
 
       {/* 5. Custom Slide-in Glassmorphic Settings Dialog Overlay */}
       <AnimatePresence>
@@ -1299,6 +952,37 @@ export default function App() {
           }
         }}
       />
+
+      {/* 12. Futuristic Sci-Fi HUD Modals */}
+      <AnimatePresence>
+        {showVision && (
+          <VisionCameraModal onClose={() => setShowVision(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDesktop && (
+          <DesktopHUDModal onClose={() => setShowDesktop(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showFiles && (
+          <FilesModal onClose={() => setShowFiles(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showKeyboardInput && (
+          <KeyboardModal
+            onClose={() => setShowKeyboardInput(false)}
+            onSendText={(text) => {
+              handleSendTextMessage(text);
+              setShowKeyboardInput(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

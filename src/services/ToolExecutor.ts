@@ -1,4 +1,5 @@
 import { ToolCall, ToolResponse, PendingConfirmation } from '../types';
+import { getISTTimeDetails } from '../utils/timeUtils';
 
 export class ToolExecutor {
   private static confirmationCallback?: (request: PendingConfirmation) => void;
@@ -150,6 +151,28 @@ export class ToolExecutor {
             value: args.value, 
             message: `Android Intent executed: ${args.setting} -> ${args.action}${args.value ? ' (' + args.value + ')' : ''}` 
           };
+          break;
+
+        case 'getCurrentTime':
+        case 'getCurrentDateTime':
+          {
+            const istInfo = getISTTimeDetails();
+            result = {
+              success: true,
+              timezone: 'Asia/Kolkata (IST, UTC+05:30)',
+              time12: istInfo.time12,
+              time24: istInfo.time24,
+              dateEn: istInfo.dateEn,
+              dateHi: istInfo.dateHi,
+              dayEn: istInfo.dayEn,
+              dayHi: istInfo.dayHi,
+              hindiTimePhrase: istInfo.hindiTimePhrase,
+              hindiDatePhrase: istInfo.hindiDatePhrase,
+              englishTimePhrase: istInfo.englishTimePhrase,
+              englishDatePhrase: istInfo.englishDatePhrase,
+              recommendedSpokenResponse: `For time query in Hindi: "${istInfo.hindiTimePhrase}". For date query in Hindi: "${istInfo.hindiDatePhrase}". For English: "${istInfo.englishTimePhrase}, ${istInfo.englishDatePhrase}".`
+            };
+          }
           break;
 
         case 'renameAssistant':
