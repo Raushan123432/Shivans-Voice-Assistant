@@ -17,115 +17,158 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
   const isSpeaking = appState === 'speaking';
   const isThinking = appState === 'thinking';
 
+  // Number of equalizer bars on each side (left & right)
+  const flankBarCount = 20;
+
   return (
-    <div className="relative flex flex-col items-center justify-center my-2">
-      {/* Outer Pulse Energy Rings */}
-      <div className="relative flex items-center justify-center">
-        {/* Animated Radial Equalizer Bars Ring */}
-        <div className="absolute inset-[-24px] pointer-events-none flex items-center justify-center">
-          {Array.from({ length: 32 }).map((_, i) => {
-            const angle = (i / 32) * 360;
-            const barHeight = isSpeaking || isListening
-              ? Math.max(8, Math.sin(i * 1.5 + Date.now() * 0.01) * 28 * (voiceLevel + 0.5))
-              : 6;
+    <div className="relative flex flex-col items-center justify-center my-4 w-full max-w-2xl px-4">
+      
+      {/* CENTRAL VOICE CORE WITH FLANKING WAVEFORM BARS (MATCHING MOCKUP IMAGE) */}
+      <div className="relative flex items-center justify-center w-full">
+        
+        {/* LEFT WAVEFORM FLANK BARS */}
+        <div className="flex-1 flex items-center justify-end gap-1 sm:gap-1.5 pr-3 sm:pr-6 overflow-hidden">
+          {Array.from({ length: flankBarCount }).map((_, i) => {
+            // Distance index from center (0 closest to center, 19 furthest)
+            const idxFromCenter = flankBarCount - 1 - i;
+            const factor = Math.max(0.2, 1 - idxFromCenter / flankBarCount);
+            
+            // Dynamic bar height calculation based on state and voiceLevel
+            let barHeight = 6;
+            if (isSpeaking || isListening) {
+              const sineVal = Math.sin((i * 0.8) + (Date.now() * 0.015));
+              barHeight = Math.max(4, Math.abs(sineVal) * 42 * (voiceLevel + 0.4) * factor);
+            } else if (isThinking) {
+              barHeight = Math.max(4, (Math.sin(i * 0.5 + Date.now() * 0.01) + 1) * 15 * factor);
+            } else {
+              barHeight = Math.max(3, (Math.sin(i * 0.4) + 1.2) * 6 * factor);
+            }
 
             return (
               <div
-                key={i}
-                className="absolute w-[2px] rounded-full transition-all duration-75"
+                key={`left-bar-${i}`}
+                className="w-[2px] sm:w-[3px] rounded-full transition-all duration-75"
                 style={{
                   height: `${barHeight}px`,
-                  transform: `rotate(${angle}deg) translateY(-54px)`,
                   background: isSpeaking
                     ? 'linear-gradient(to top, #c084fc, #e879f9)'
                     : isListening
-                    ? 'linear-gradient(to top, #22d3ee, #38bdf8)'
-                    : isThinking
-                    ? 'linear-gradient(to top, #818cf8, #c084fc)'
-                    : 'rgba(56, 189, 248, 0.25)'
+                    ? 'linear-gradient(to top, #818cf8, #38bdf8)'
+                    : 'linear-gradient(to top, rgba(168,85,247,0.4), rgba(56,189,248,0.7))',
+                  boxShadow: isListening || isSpeaking ? '0 0 8px rgba(168,85,247,0.6)' : 'none'
                 }}
               />
             );
           })}
         </div>
 
-        {/* Pulse Waves */}
-        {(isListening || isSpeaking || isThinking) && (
-          <>
-            <motion.div
-              animate={{
-                scale: [1, 1.45, 1],
-                opacity: [0.6, 0.1, 0.6]
-              }}
-              transition={{
-                duration: isSpeaking ? 1.2 : 2.0,
-                repeat: Infinity,
-                ease: 'easeInOut'
-              }}
-              className={`absolute inset-[-12px] rounded-full blur-md ${
-                isSpeaking
-                  ? 'bg-gradient-to-r from-purple-500/40 to-fuchsia-500/40'
-                  : 'bg-gradient-to-r from-cyan-500/40 to-blue-500/40'
-              }`}
-            />
-            <motion.div
-              animate={{
-                scale: [1, 1.8, 1],
-                opacity: [0.3, 0.0, 0.3]
-              }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                ease: 'easeInOut'
-              }}
-              className="absolute inset-[-20px] rounded-full border border-cyan-400/30"
-            />
-          </>
-        )}
+        {/* CENTER GLOWING HOLOGRAPHIC VOICE ORB */}
+        <div className="relative flex items-center justify-center shrink-0">
+          
+          {/* Radial Pulse Energy Field */}
+          {(isListening || isSpeaking || isThinking) && (
+            <>
+              <motion.div
+                animate={{
+                  scale: [1, 1.35, 1],
+                  opacity: [0.7, 0.2, 0.7]
+                }}
+                transition={{
+                  duration: isSpeaking ? 1.0 : 1.8,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }}
+                className={`absolute inset-[-14px] rounded-full blur-md ${
+                  isSpeaking
+                    ? 'bg-gradient-to-r from-purple-500/50 to-fuchsia-500/50'
+                    : 'bg-gradient-to-r from-cyan-500/50 to-indigo-500/50'
+                }`}
+              />
+              <motion.div
+                animate={{
+                  scale: [1, 1.6, 1],
+                  opacity: [0.4, 0.0, 0.4]
+                }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }}
+                className="absolute inset-[-24px] rounded-full border border-cyan-400/40"
+              />
+            </>
+          )}
 
-        {/* Main Voice Interactive Orb Sphere */}
-        <button
-          onClick={onToggleVoice}
-          className={`relative group w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center p-1 transition-all duration-300 cursor-pointer shadow-2xl focus:outline-none ${
-            isSpeaking
-              ? 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-indigo-600 shadow-[0_0_40px_rgba(192,132,252,0.6)]'
-              : isListening
-              ? 'bg-gradient-to-br from-cyan-500 via-sky-400 to-blue-600 shadow-[0_0_40px_rgba(34,211,238,0.6)]'
-              : isThinking
-              ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-cyan-500 shadow-[0_0_35px_rgba(99,102,241,0.5)] animate-pulse'
-              : 'bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-950 border border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]'
-          }`}
-        >
-          {/* Internal Holographic Glow Core */}
-          <div className="w-full h-full rounded-full bg-black/40 backdrop-blur-md flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.25)_0%,transparent_70%)]" />
+          {/* Interactive Mic Orb Circle */}
+          <button
+            onClick={onToggleVoice}
+            className={`relative group w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center p-1 transition-all duration-300 cursor-pointer shadow-2xl focus:outline-none ${
+              isSpeaking
+                ? 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-indigo-600 shadow-[0_0_45px_rgba(192,132,252,0.8)]'
+                : isListening
+                ? 'bg-gradient-to-br from-cyan-500 via-sky-400 to-indigo-600 shadow-[0_0_45px_rgba(34,211,238,0.8)]'
+                : isThinking
+                ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-cyan-500 shadow-[0_0_35px_rgba(99,102,241,0.6)] animate-pulse'
+                : 'bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border-2 border-cyan-400/50 hover:border-cyan-300 hover:shadow-[0_0_35px_rgba(6,182,212,0.5)]'
+            }`}
+          >
+            {/* Inner Glow Sphere & Microphone Icon */}
+            <div className="w-full h-full rounded-full bg-black/60 backdrop-blur-md flex flex-col items-center justify-center relative overflow-hidden border border-white/10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.3)_0%,transparent_75%)]" />
 
-            {/* Icon State */}
-            {isSpeaking ? (
-              <Radio className="w-9 h-9 text-purple-200 animate-pulse z-10" />
-            ) : isListening ? (
-              <Mic className="w-9 h-9 text-cyan-200 animate-bounce z-10" />
-            ) : isThinking ? (
-              <Sparkles className="w-9 h-9 text-indigo-200 animate-spin z-10" />
-            ) : (
-              <MicOff className="w-8 h-8 text-zinc-400 group-hover:text-cyan-300 transition-colors z-10" />
-            )}
+              {isSpeaking ? (
+                <Radio className="w-8 h-8 text-purple-200 animate-pulse z-10" />
+              ) : isListening ? (
+                <Mic className="w-8 h-8 text-cyan-200 animate-bounce z-10" />
+              ) : isThinking ? (
+                <Sparkles className="w-8 h-8 text-indigo-200 animate-spin z-10" />
+              ) : (
+                <MicOff className="w-7 h-7 text-zinc-400 group-hover:text-cyan-300 transition-colors z-10" />
+              )}
+            </div>
+          </button>
+        </div>
 
-            {/* Label below icon */}
-            <span className="text-[10px] font-mono tracking-widest font-bold mt-1 text-zinc-300 uppercase z-10">
-              {isSpeaking ? 'SPEAKING' : isListening ? 'LISTENING' : isThinking ? 'THINKING' : 'READY'}
-            </span>
-          </div>
-        </button>
+        {/* RIGHT WAVEFORM FLANK BARS */}
+        <div className="flex-1 flex items-center justify-start gap-1 sm:gap-1.5 pl-3 sm:pl-6 overflow-hidden">
+          {Array.from({ length: flankBarCount }).map((_, i) => {
+            // Distance index from center (0 closest to center, 19 furthest)
+            const idxFromCenter = i;
+            const factor = Math.max(0.2, 1 - idxFromCenter / flankBarCount);
+
+            // Dynamic bar height calculation based on state and voiceLevel
+            let barHeight = 6;
+            if (isSpeaking || isListening) {
+              const sineVal = Math.sin((i * 0.8) + (Date.now() * 0.015) + 1.5);
+              barHeight = Math.max(4, Math.abs(sineVal) * 42 * (voiceLevel + 0.4) * factor);
+            } else if (isThinking) {
+              barHeight = Math.max(4, (Math.sin(i * 0.5 + Date.now() * 0.01 + 1.2) + 1) * 15 * factor);
+            } else {
+              barHeight = Math.max(3, (Math.sin(i * 0.4 + 1.0) + 1.2) * 6 * factor);
+            }
+
+            return (
+              <div
+                key={`right-bar-${i}`}
+                className="w-[2px] sm:w-[3px] rounded-full transition-all duration-75"
+                style={{
+                  height: `${barHeight}px`,
+                  background: isSpeaking
+                    ? 'linear-gradient(to top, #c084fc, #e879f9)'
+                    : isListening
+                    ? 'linear-gradient(to top, #38bdf8, #818cf8)'
+                    : 'linear-gradient(to top, rgba(56,189,248,0.7), rgba(168,85,247,0.4))',
+                  boxShadow: isListening || isSpeaking ? '0 0 8px rgba(56,189,248,0.6)' : 'none'
+                }}
+              />
+            );
+          })}
+        </div>
+
       </div>
 
-      {/* State Status Tag */}
-      <div className="mt-4 flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-cyan-500/30 text-xs font-mono">
-        <Activity className={`w-3.5 h-3.5 ${isListening ? 'text-cyan-400 animate-pulse' : isSpeaking ? 'text-purple-400 animate-bounce' : 'text-zinc-500'}`} />
-        <span className="text-zinc-300">
-          ZOYA STATE: <strong className={isSpeaking ? 'text-purple-300' : isListening ? 'text-cyan-300' : 'text-zinc-400'}>{appState.toUpperCase()}</strong>
-        </span>
-      </div>
     </div>
   );
 };
+
+export default VoiceOrb;

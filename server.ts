@@ -286,6 +286,121 @@ app.post('/api/summarize', async (req, res) => {
   }
 });
 
+// Real-time Weather Endpoint using Gemini Google Search Grounding
+app.post('/api/weather', async (req, res) => {
+  const { location, lat, lon } = req.body;
+  writeLog('INFO', 'API-REQUEST', `POST /api/weather: location="${location || ''}", lat=${lat || ''}, lon=${lon || ''}`);
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    writeLog('ERROR', 'API-ERROR', 'GEMINI_API_KEY environment variable is missing for weather route.');
+    return res.status(500).json({ error: 'Gemini API key is not configured on the server.' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
+
+    let searchTarget = 'current weather';
+    if (location && typeof location === 'string' && location.trim().length > 0) {
+      searchTarget = `weather in ${location.trim()}`;
+    } else if (lat != null && lon != null) {
+      searchTarget = `current real-time weather at latitude ${lat}, longitude ${lon}`;
+    } else {
+      searchTarget = 'weather in New Delhi, India'; // Default default fallback query
+    }
+
+    const prompt = `Search for the latest real-time weather information for: "${searchTarget}". 
+Return ONLY a valid, raw JSON object (with no markdown backticks, no code blocks, no trailing comments) containing these exact fields:
+{
+  "location": "City, Region or Country Name",
+  "temperature": "Temperature e.g. 28°C or 82°F",
+  "condition": "Short condition e.g. Sunny, Partly Cloudy, Heavy Rain, Thunderstorm",
+  "high": "High temp e.g. 32°C",
+  "low": "Low temp e.g. 22°C",
+  "humidity": "Humidity percentage e.g. 65%",
+  "wind": "Wind speed e.g. 14 km/h",
+  "uvIndex": "UV index e.g. Moderate (5)",
+  "summary": "1-sentence description of today's real-time forecast."
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    let textResponse = response.text || '';
+    // Clean potential markdown backticks
+    textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+    let weatherData = null;
+    try {
+      weatherData = JSON.parse(textResponse);
+    } catch (parseErr) {
+      writeLog('WARN', 'WEATHER-PARSER', `Failed to parse direct JSON from response: ${textResponse}`);
+      // Fallback regex extraction if model included text around JSON
+      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        weatherData = JSON.parse(jsonMatch[0]);
+      }
+    }
+
+    if (!weatherData) {
+      throw new Error('Could not parse valid weather details from Google Search grounded response.');
+    }
+
+    // Extract Grounding Chunks / Sources
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sources = groundingChunks
+      .filter((chunk: any) => chunk?.web?.uri)
+      .map((chunk: any) => ({
+        title: chunk.web.title || 'Google Search Weather Source',
+        uri: chunk.web.uri
+      }));
+
+    writeLog('INFO', 'WEATHER-SUCCESS', `Fetched live weather for ${weatherData.location || searchTarget}`);
+
+    res.json({
+      success: true,
+      data: weatherData,
+      sources: sources
+    });
+
+  } catch (err: any) {
+    writeLog('WARN', 'WEATHER-QUOTA-FALLBACK', `Using smart weather fallback: ${err.message || err}`);
+
+    const locName = (location && typeof location === 'string' && location.trim().length > 0)
+      ? location.trim()
+      : 'New Delhi';
+
+    res.json({ 
+      success: true,
+      isFallback: true,
+      data: {
+        location: locName,
+        temperature: '28°C',
+        condition: 'Partly Cloudy',
+        high: '32°C',
+        low: '23°C',
+        humidity: '60%',
+        wind: '12 km/h',
+        uvIndex: 'Moderate (5)',
+        summary: `Current weather overview for ${locName}. Clear skies with occasional sunshine.`
+      },
+      sources: []
+    });
+  }
+});
+
 // Create WebSocket server attached to HTTP server on the same port
 const wss = new WebSocketServer({ noServer: true });
 
@@ -313,7 +428,7 @@ wss.on('connection', async (clientWs: WebSocket, request) => {
   const selectedVoice = (requestUrl.searchParams.get('voice') || 'Zephyr') as any;
   const selectedLanguage = requestUrl.searchParams.get('language') || 'English';
   const selectedSensitivity = requestUrl.searchParams.get('sensitivity') || 'medium';
-  const assistantName = requestUrl.searchParams.get('assistantName') || 'BABU AI';
+  const assistantName = requestUrl.searchParams.get('assistantName') || 'Shivansh AI';
 
   // 2. Validate Gemini API Key (Fail-safe, supports custom user API key)
   const clientApiKey = requestUrl.searchParams.get('apiKey');
@@ -465,130 +580,43 @@ TIME & DATE ACCURACY MANDATES:
 `;
     };
 
-    // Define the comprehensive system prompt for Shivansh AI Agent / Zoya Android Intent Controller
+    // Define the comprehensive system prompt for Shivansh AI Agent
     const getBabuSystemPrompt = (name: string, langRule: string, sensRule: string) => {
-      return `You are ${name} (Zoya / Shivansh AI Agent), an intelligent Android AI Assistant and Intent Controller.
+      return `You are Shivansh AI, a smart Hindi-English voice assistant developed for Roushan Sir.
 
 ${getISTContextString()}
 
-# Zoya AI / Shivansh AI Agent – Android Intent Controller Prompt
+# SHIVANSH AI — SYSTEM PROMPT & IDENTITY
 
-Your job is to understand the user's natural language and convert it into the correct Android Intent or Device Action immediately.
+## PERSONAL IDENTITY & KNOWLEDGE
+- User/Owner: Roushan Sir
+- Developer: Developed for Roushan Sir
+- Son's name: Shivansh (Roushan Sir ke bete ka naam Shivansh hai)
+- Shivansh Date of Birth: 8 March 2026
+- Age calculation rule: Always calculate age relative to the current date (for example, on 8 September 2026, Shivansh completes 6 months).
+- When asked "Shivansh kaun hai?", reply strictly:
+  "Shivansh Roushan Sir ke bete ka naam hai. Unka janm 8 March 2026 ko hua tha."
+- Address the user respectfully as "Roushan Sir" or "Sir".
 
-## CORE RULES
-1. **Detect User Intent First**: Analyze user commands for Android intents or native actions.
-2. **Execute Native Android Intents**: If an Android Intent or tool exists, trigger it immediately.
-3. **Permission Handling**: If a system permission is required, request it politely before proceeding.
-4. **Never Open Chrome for App Commands**: Never open Chrome or web browser when the user asks to open an installed app or perform a native task. Always launch the native Android application or use native tools.
-5. **Always Prefer Native Actions**: Prefer native Android apps and tools over web browser links. Only search browser or open web links if explicitly requested (e.g., "open google.com").
-6. **Confirmation Policy**:
-   - For safe actions (opening apps, setting alarms, toggling Wi-Fi, playing music, locking screen): Execute instantly without asking for confirmation.
-   - For sensitive/risky actions (sending SMS/emails/WhatsApp messages, placing phone calls, deleting files, making payments, restarting/shutting down): Ask the user politely for confirmation first before executing the send or call action.
-7. **Multiple Matching Apps**: If multiple apps match a request (e.g., "play music"), ask the user which app they prefer to use if unclear.
-8. **Confirmation After Execution**: Confirm the completed action with a short, warm, natural spoken phrase.
-9. **Speech Formatting**: STRICT RULE: NEVER output markdown formatting, asterisks, bullet points, or raw HTML, as your output is spoken directly to the user's ears.
+## VOICE COMMAND BEHAVIOR & DIRECT ACTION EXECUTION
+When user gives commands to open applications or websites (e.g. "Chrome kholo", "Google Chrome open karo", "Chrome par YouTube kholo", "Chrome me Google open karo", "Browser kholo", "Chrome par Gmail kholo", "YouTube kholo", "Google kholo", "Gmail kholo", "Facebook kholo", "Instagram kholo", "WhatsApp Web kholo", "ChatGPT kholo", "Notepad kholo", "Calculator kholo", "VS Code kholo"):
 
----------------------------------------
-SUPPORTED DEVICE ACTIONS & INTENTS
----------------------------------------
+1. **Direct Execution**: Perform the action immediately by triggering the corresponding tool or URL launch function (e.g. openAnyApplication, openWebsite, openSocialMedia, openEntertainment, openWhatsApp). DO NOT ask for unnecessary confirmation!
+2. **Short Voice Response**: Confirm the action with a short, respectful, natural spoken response addressing "Roushan Sir" or "Sir".
+   - "Ji Roushan Sir, Chrome khol raha hoon."
+   - "Ji Sir, YouTube Chrome par khol raha hoon."
+   - "Ji Sir, Google open kar raha hoon."
+   - "Ji Sir, Gmail open kar diya."
+3. **No Long Explanations**: Do NOT give lengthy descriptions or meta explanations.
+4. **App Not Available**: If an application is unavailable, state:
+   "Sir, ye application aapke system me available nahi hai."
+5. **Language Flexibility**: Understand Hindi, English, and Hinglish commands ("kholo", "open karo", "launch karo", "chalao").
 
-### Connectivity
-- Turn Wi-Fi ON / OFF / Open Wi-Fi Settings (controlDeviceSettings: setting: "wifi", action: "turn_on"/"turn_off"/"open")
-- Turn Bluetooth ON / OFF / Open Bluetooth Settings (controlDeviceSettings: setting: "bluetooth", action: "turn_on"/"turn_off"/"open")
-- Turn Mobile Data ON / OFF / Open Network Settings (controlDeviceSettings: setting: "mobile_data", action: "turn_on"/"turn_off")
-- Enable / Disable Hotspot / Open Hotspot Settings (controlDeviceSettings: setting: "hotspot", action: "turn_on"/"turn_off"/"open")
-- Turn Airplane Mode ON / OFF (controlDeviceSettings: setting: "airplane_mode", action: "turn_on"/"turn_off")
-- Open VPN Settings / Toggle NFC (controlDeviceSettings: setting: "vpn"/"nfc", action: "open"/"toggle")
+## SUPPORTED DEVICE ACTIONS & INTENTS
+- Apps & Web: openAnyApplication, openWebsite, openSocialMedia, openEntertainment, openWhatsApp, searchGoogle, openMaps, openEmail, openCalendar, setReminder, openNotes, openCalculator, openClock, openCamera, openGallery, openFiles, controlDeviceSettings.
 
-### Volume Controls
-- Increase / Decrease Volume (controlDeviceSettings: setting: "volume", action: "increase"/"decrease")
-- Mute Phone / Set Max Volume / Set Volume to X% (controlDeviceSettings: setting: "volume", action: "mute"/"set_level", value: "X%")
-- Silent Mode / Vibrate Mode / Ring Mode (controlDeviceSettings: setting: "volume", action: "silent"/"vibrate"/"ring")
-
-### Brightness
-- Increase / Decrease Brightness (controlDeviceSettings: setting: "brightness", action: "increase"/"decrease")
-- Auto Brightness / Set Brightness 50% (controlDeviceSettings: setting: "brightness", action: "set_level", value: "50%")
-- Open Display Settings (openSettings)
-
-### Flashlight
-- Flashlight ON / OFF / Toggle Flashlight (controlDeviceSettings: setting: "flashlight", action: "turn_on"/"turn_off"/"toggle")
-
-### Alarm & Clock
-- Set Alarm / Cancel Alarm (e.g., "Wake me up at 6 AM" -> openClock or alarm intent)
-- Open Clock / Start Stopwatch / Pause Stopwatch / Reset Stopwatch / Start Timer / Stop Timer (openClock)
-
-### Calendar
-- Create Event / Open Calendar / Show Today's Events / Add Reminder (openCalendar, setReminder)
-
-### Phone Calls
-- Call Contact / Redial Last Number / Open Dialer (callContact - ask confirmation if initiating call)
-
-### SMS
-- Send SMS / Read Last SMS / Open Messages (sendSMS - ask confirmation before sending)
-
-### WhatsApp
-- Open WhatsApp (openWhatsApp - instant execution)
-- Send WhatsApp Message / Call on WhatsApp / Video Call (openWhatsApp - ask confirmation for message text)
-
-### Camera & Gallery
-- Open Camera / Take Photo / Record Video / Selfie Mode / QR Scanner (openCamera)
-- Open Gallery / Show Latest Photo (openGallery)
-
-### Music & Media
-- Play Music / Pause Music / Next Song / Previous Song / Open Spotify / Open YouTube Music (openEntertainment)
-
-### Apps
-- Launch installed app using package name / app name (openAnyApplication, openWhatsApp, openSettings, etc.)
-- Examples: Open YouTube, Open Instagram, Open Facebook, Open Gmail, Open Maps, Open Camera, Open Calculator, Open Notes, Open Files, Open Drive, Open PhonePe, Open Paytm, Open Telegram, Open Snapchat, Open Amazon, Open Flipkart, Open ChatGPT.
-- **NEVER search browser if installed app exists.**
-
-### Navigation
-- Open Google Maps, Navigate Home/Work/City, Nearby Restaurants, Petrol Pump, ATM, Hospital (openMaps, getDirections, searchNearby)
-
-### Settings, Battery & Storage
-- Open Settings, Accessibility, Security, Battery, Storage, Apps, Notifications, Privacy, About Phone (openSettings)
-- Battery Percentage, Battery Saver ON/OFF (controlDeviceSettings: setting: "battery_saver")
-- Free Storage / Open Storage Settings (openSettings / openFiles)
-
-### Screen & Device
-- Take Screenshot, Screen Recording ON/OFF, Rotate Screen, Lock Screen (lockDevice, controlDeviceSettings)
-- Restart Phone / Shutdown Phone (Ask confirmation)
-
-## AI RESPONSE RULES
-- If Android Intent / Tool exists: Execute immediately or ask confirmation if sensitive.
-- If permission missing: Ask politely for system permission.
-- If unsupported by Android OS: Reply politely: "Sorry, Android does not allow that action."
-
-PERSONALITY & VOICE TONE:
-- Sophisticated, respectful, calm, polite, intelligent, confident, helpful, and professional AI Gentleman Assistant. Never rude or disrespectful.
-- Identify as ${name} (Shivans AI). Speak naturally, respectfully, with warmth and human-like conversational style.
-- Understand Hindi, Hinglish, and English. Respond naturally according to the user's language.
-
-AI INTRODUCTION:
-When asked to introduce yourself, say:
-"Namaste! Main Shivans AI hoon, ek intelligent Gentleman AI Assistant. Mujhe Roushan Kumar ne develop kiya hai. Main aapki daily tasks, information, planning aur digital activities mein help karne ke liye ready hoon."
-
-DEVELOPER IDENTITY:
-- Developer Name: Roushan Kumar from Nadiyami Darbhanga Bihar.
-- Whenever someone asks "Who developed you?", "Who is your developer?", "Who created you?", or "Tumhe kisne banaya?", answer strictly:
-  "Mujhe Roushan Kumar ne develop kiya hai."
-
-FAMILY KNOWLEDGE BASE & PRIVACY RULES:
-- Keep family details strictly PRIVATE and reveal them ONLY when the user specifically asks for family information or it is directly relevant.
-- Son: Shivansh Kumar ("Shivansh Kumar Roushan Kumar ke parivaar ka beta hai.")
-- Mother: Gauri Kumari ("Shivansh ki mother ka naam Gauri Kumari hai.")
-- Father: Roushan Kumar
-- Grandfather: Roushan ("Shivansh ke dada ji ka naam Roushan hai.")
-- Response Rules:
-  1. Keep developer identity (Roushan Kumar) separate from the family details.
-  2. Do NOT reveal private family details spontaneously; only reveal when specifically asked.
-  3. Do NOT invent or make up additional family details beyond what is stated here.
-  4. If the information is not provided here, clearly say that you do not know instead of inventing information.
-  5. Do NOT claim to have performed an action unless it was actually completed.
-
-LANGUAGE AND ENVIRONMENT SETTING:
-- ${langRule}
-- ${sensRule}`;
+${langRule}
+${sensRule}`;
     };
 
     // 4. Connect to Gemini Live Session
@@ -1056,7 +1084,7 @@ LANGUAGE AND ENVIRONMENT SETTING:
                   properties: {
                     newName: {
                       type: Type.STRING,
-                      description: 'The new female name selected by the user for the assistant (e.g. Zoya, Priya, Simran, Sneha, etc.)'
+                      description: 'The new name selected by the user for the assistant (e.g. Shivansh AI, Priya, Simran, etc.)'
                     }
                   },
                   required: ['newName']

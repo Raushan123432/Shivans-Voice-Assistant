@@ -858,51 +858,6 @@ export function AndroidOverlayManager({
               </div>
             )}
 
-            {/* 7. LAUNCHING RECONSTRUCTED APP PREVIEW */}
-            {activeOverlay === 'openAnyApplication' && (
-              <div className="flex-1 flex flex-col justify-center items-center bg-zinc-950 p-6 relative">
-                <div className="absolute top-4 right-4 z-10">
-                  <button onClick={onClose} className="p-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800">
-                    <X className="w-4 h-4 text-zinc-400" />
-                  </button>
-                </div>
-
-                <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-                  {/* Rotating orbital core loader */}
-                  <div className="relative w-24 h-24 flex items-center justify-center mb-2">
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
-                      className="absolute inset-0 rounded-full border border-dashed border-purple-500/30"
-                    />
-                    <motion.div 
-                      animate={{ rotate: -360 }}
-                      transition={{ repeat: Infinity, duration: 5, ease: 'linear' }}
-                      className="absolute inset-2 rounded-full border-2 border-dashed border-cyan-500/20"
-                    />
-                    <motion.div 
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-mono font-bold text-lg shadow-[0_0_24px_rgba(139,92,246,0.3)] border border-purple-400/30"
-                    >
-                      AI
-                    </motion.div>
-                  </div>
-
-                  <div className="text-base font-bold text-zinc-200 uppercase tracking-widest font-mono">
-                    Launching App
-                  </div>
-
-                  <div className="px-4 py-2 rounded-2xl bg-zinc-900 border border-purple-500/20 text-xs font-mono font-bold text-purple-400 shadow-lg">
-                    {launchedAppName || 'System App'}
-                  </div>
-
-                  <div className="text-[10px] text-zinc-500 font-mono leading-relaxed mt-2">
-                    Simulating safe sandboxed environment loading protocols. Establishing dynamic deep links...
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* 8. JARVIS CONNECTED HOST SYSTEM CONTROL HUD */}
             {[

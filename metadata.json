@@ -1,9 +1,10 @@
 {
-  "name": "Zoya AI",
-  "description": "Futuristic 3D AI Voice Assistant with Zoya AI character, sci-fi HUD controls, hologram platform, and cybernetic telemetry.",
+  "name": "SHIVANSH AI OS",
+  "description": "Professional desktop AI command center with 3D holographic energy core, voice control, system telemetry, desktop automation, app launcher, file assistant, and web browser control.",
   "requestFramePermissions": [
     "microphone",
-    "camera"
+    "camera",
+    "geolocation"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

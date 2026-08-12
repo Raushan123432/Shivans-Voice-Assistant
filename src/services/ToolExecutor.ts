@@ -134,7 +134,7 @@ export class ToolExecutor {
           break;
         case 'openAnyApplication':
           this.actionCallback?.(name, args || {});
-          result = { success: true, appName: args.appName, message: `Attempted to open application: ${args.appName}` };
+          result = await this.openAnyApp(args.appName || args.application || args.name);
           break;
 
         case 'lockDevice':
@@ -639,6 +639,41 @@ export class ToolExecutor {
 
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
     return { success: true, platform, query, openedUrl: targetUrl };
+  }
+
+  private static async openAnyApp(appName?: string): Promise<Record<string, any>> {
+    if (!appName) return { error: 'No application name specified' };
+    const nameLower = appName.toLowerCase().trim();
+
+    let targetUrl = '';
+    if (nameLower.includes('youtube')) {
+      targetUrl = 'https://youtube.com';
+    } else if (nameLower.includes('chrome') || nameLower.includes('browser') || nameLower.includes('google search')) {
+      targetUrl = 'https://google.com';
+    } else if (nameLower.includes('gmail') || nameLower.includes('email') || nameLower.includes('mail')) {
+      targetUrl = 'https://mail.google.com';
+    } else if (nameLower.includes('facebook')) {
+      targetUrl = 'https://facebook.com';
+    } else if (nameLower.includes('instagram')) {
+      targetUrl = 'https://instagram.com';
+    } else if (nameLower.includes('whatsapp')) {
+      targetUrl = 'https://web.whatsapp.com';
+    } else if (nameLower.includes('chatgpt') || nameLower.includes('gpt')) {
+      targetUrl = 'https://chatgpt.com';
+    } else if (nameLower.includes('vs code') || nameLower.includes('vscode') || nameLower.includes('code')) {
+      targetUrl = 'https://vscode.dev';
+    } else if (nameLower.includes('calculator')) {
+      targetUrl = 'https://www.google.com/search?q=calculator';
+    } else if (nameLower.includes('notepad') || nameLower.includes('notes')) {
+      targetUrl = 'https://keep.google.com';
+    } else if (nameLower.includes('map')) {
+      targetUrl = 'https://maps.google.com';
+    } else {
+      targetUrl = `https://www.google.com/search?q=${encodeURIComponent(appName)}`;
+    }
+
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    return { success: true, appName, openedUrl: targetUrl, message: `Opened application: ${appName}` };
   }
 }
 

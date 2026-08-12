@@ -123,9 +123,19 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
   };
 
   return (
-    <aside className="w-full lg:w-64 flex flex-col gap-4 relative z-30 shrink-0">
+    <motion.aside 
+      initial={{ opacity: 0, x: -25 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full lg:w-64 flex flex-col gap-4 relative z-30 shrink-0"
+    >
       {/* 1. System Modules Section */}
-      <div className="flex flex-col gap-2">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="flex flex-col gap-2"
+      >
         <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-cyan-500/20 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
@@ -144,8 +154,8 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
             return (
               <motion.button
                 key={act.id}
-                whileHover={{ scale: 1.02, x: 4 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.02, x: 5, boxShadow: '0 0 20px rgba(6,182,212,0.25)' }}
+                whileTap={{ scale: 0.97 }}
                 onClick={act.onClick}
                 className={`relative group w-full p-2.5 rounded-2xl border transition-all text-left flex items-center justify-between cursor-pointer overflow-hidden backdrop-blur-xl ${
                   isActive
@@ -157,7 +167,7 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
                 <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${act.color} opacity-80 group-hover:opacity-100 transition-opacity`} />
 
                 <div className="flex items-center gap-2.5">
-                  <div className={`p-1.5 rounded-xl bg-gradient-to-br ${act.color} text-white shadow-md`}>
+                  <div className={`p-1.5 rounded-xl bg-gradient-to-br ${act.color} text-white shadow-md group-hover:scale-110 transition-transform`}>
                     <Icon className="w-3.5 h-3.5" />
                   </div>
 
@@ -180,10 +190,15 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* 2. Quick Voice Actions Section */}
-      <div className="flex flex-col gap-2 pt-2 border-t border-cyan-500/20">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.25 }}
+        className="flex flex-col gap-2 pt-2 border-t border-cyan-500/20"
+      >
         <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-purple-500/20 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
@@ -204,8 +219,8 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
             return (
               <motion.button
                 key={qa.id}
-                whileHover={{ scale: 1.02, x: 3 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02, x: 4, boxShadow: '0 0 20px rgba(168,85,247,0.25)' }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => handleActionClick(qa.id, qa.command)}
                 className={`relative group w-full p-2.5 rounded-2xl border transition-all text-left flex items-center justify-between cursor-pointer overflow-hidden backdrop-blur-2xl ${
                   isJustExecuted
@@ -220,7 +235,7 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
                 <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${qa.color} opacity-80 group-hover:opacity-100 transition-opacity`} />
 
                 <div className="flex items-center gap-2.5 relative z-10 min-w-0">
-                  <div className={`p-1.5 rounded-xl bg-gradient-to-br ${qa.color} text-white shadow-md shrink-0`}>
+                  <div className={`p-1.5 rounded-xl bg-gradient-to-br ${qa.color} text-white shadow-md shrink-0 group-hover:scale-110 transition-transform`}>
                     {isJustExecuted ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 animate-bounce" />
                     ) : (
@@ -251,8 +266,8 @@ export const HUDLeftPanel: React.FC<HUDLeftPanelProps> = ({
             );
           })}
         </div>
-      </div>
-    </aside>
+      </motion.div>
+    </motion.aside>
   );
 };
 

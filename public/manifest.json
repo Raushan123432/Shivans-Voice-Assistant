@@ -1,0 +1,19 @@
+{
+  "name": "Shivans AI Assistant",
+  "short_name": "Shivans AI",
+  "description": "Intelligent Gentleman AI Assistant developed by Roushan Kumar",
+  "start_url": "/agent",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8716/8716223.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

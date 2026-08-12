@@ -9,7 +9,7 @@ interface FilesModalProps {
 export const FilesModal: React.FC<FilesModalProps> = ({ onClose }) => {
   const [search, setSearch] = useState('');
   const [files, setFiles] = useState([
-    { name: 'ZoyaSystemConfig.json', type: 'code', size: '24 KB', date: '2026-08-05' },
+    { name: 'ShivanshSystemConfig.json', type: 'code', size: '24 KB', date: '2026-08-05' },
     { name: 'NeuralVoiceWeights.bin', type: 'binary', size: '142 MB', date: '2026-08-04' },
     { name: 'DesktopAutomationScript.py', type: 'code', size: '18 KB', date: '2026-08-03' },
     { name: 'CyberAvatarRender.png', type: 'image', size: '4.2 MB', date: '2026-08-02' },

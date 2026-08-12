@@ -45,7 +45,7 @@ export const KeyboardModal: React.FC<KeyboardModalProps> = ({ onClose, onSendTex
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Ask Zoya AI anything or give a command (e.g. 'Open Chrome', 'What is the weather today?')..."
+            placeholder="Ask Shivansh AI anything or give a command (e.g. 'Chrome kholo', 'YouTube kholo', 'What is the weather today?')..."
             rows={4}
             className="w-full p-4 rounded-2xl bg-zinc-900 border border-purple-500/30 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-400 resize-none"
             autoFocus
