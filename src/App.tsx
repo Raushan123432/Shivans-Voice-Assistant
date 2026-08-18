@@ -28,6 +28,7 @@ import ToolExecutor from './services/ToolExecutor';
 export default function App() {
   const {
     appState,
+    errorMessage,
     transcript,
     voice,
     speakingRate,
@@ -37,7 +38,9 @@ export default function App() {
     changeVoice,
     changeSpeakingRate,
     changeAssistantName,
-    sendTextMessage
+    sendTextMessage,
+    clearError,
+    retryMic
   } = useLiveSession();
 
   const {
@@ -182,8 +185,11 @@ export default function App() {
             <JarvisMainDashboard
               appState={appState}
               transcript={transcript?.text}
+              errorMessage={errorMessage}
               onStartSession={startSession}
               onStopSession={stopSession}
+              onClearError={clearError}
+              onRetryMic={retryMic}
               muted={muted}
               onToggleMute={toggleMute}
               volume={volume}
@@ -231,8 +237,11 @@ export default function App() {
             <JarvisMainDashboard
               appState={appState}
               transcript={transcript?.text}
+              errorMessage={errorMessage}
               onStartSession={startSession}
               onStopSession={stopSession}
+              onClearError={clearError}
+              onRetryMic={retryMic}
               muted={muted}
               onToggleMute={toggleMute}
               volume={volume}

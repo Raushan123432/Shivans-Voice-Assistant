@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Sparkles, Play, Search, ShieldCheck, Zap } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Sparkles, Play, Search, ShieldCheck, Zap, AlertTriangle, X, RotateCcw, Info } from 'lucide-react';
 import { JarvisCore } from './3d/JarvisCore';
 import { AppState } from '../types';
 
 interface JarvisMainDashboardProps {
   appState: AppState;
   transcript?: string;
+  errorMessage?: string | null;
   onStartSession: () => void;
   onStopSession: () => void;
+  onClearError?: () => void;
+  onRetryMic?: () => void;
   muted: boolean;
   onToggleMute: () => void;
   volume: number;
@@ -18,8 +21,11 @@ interface JarvisMainDashboardProps {
 export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
   appState,
   transcript,
+  errorMessage,
   onStartSession,
   onStopSession,
+  onClearError,
+  onRetryMic,
   muted,
   onToggleMute,
   volume,
@@ -27,6 +33,7 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
   onExecuteVoiceCommand
 }) => {
   const [isHolding, setIsHolding] = useState(false);
+  const [showMicHelp, setShowMicHelp] = useState(false);
 
   const getStatusText = () => {
     switch (appState) {
@@ -48,19 +55,21 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
   };
 
   const quickCommands = [
-    'Shivansh, open WhatsApp',
-    "Shivansh, search today's weather",
-    'Shivansh, open Chrome',
-    'Shivansh, find my resume',
-    'Shivansh, open VS Code',
-    'Shivansh, launch Spotify'
+    'Shivansh, time batao',
+    'YouTube kholo',
+    'Chrome me YouTube par Arijit Singh ka song chalao',
+    'Take a screenshot',
+    'Show PC system info',
+    'Lock PC',
+    'Open VS Code',
+    'Shivansh, open WhatsApp'
   ];
 
   return (
     <div className="w-full h-full flex flex-col justify-between items-center relative overflow-hidden select-none p-4 sm:p-6 font-sans">
       
-      {/* Top Center Status Banner */}
-      <div className="flex flex-col items-center gap-1 z-20 mt-2">
+      {/* Top Center Status Banner & Permission Alert */}
+      <div className="flex flex-col items-center gap-2 z-20 mt-1 max-w-lg w-full">
         <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] tracking-widest uppercase flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
           <span className={`w-2 h-2 rounded-full ${
             appState === 'listening' ? 'bg-cyan-400 animate-ping' :
@@ -70,6 +79,59 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
           }`} />
           <span>{getStatusText()}</span>
         </div>
+
+        {/* Microphone / Connection Error Warning Banner */}
+        {errorMessage && (
+          <div className="w-full p-3 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-mono shadow-xl backdrop-blur-md flex flex-col gap-2 animate-fadeIn">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 font-bold text-amber-300">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+                <span>AUDIO NOTICE</span>
+              </div>
+              {onClearError && (
+                <button
+                  onClick={onClearError}
+                  className="p-1 rounded-lg hover:bg-amber-500/20 text-amber-300 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-amber-100/90">
+              {errorMessage}
+            </p>
+
+            <div className="flex items-center gap-2 pt-1">
+              {onRetryMic && (
+                <button
+                  onClick={onRetryMic}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 text-amber-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Retry Microphone</span>
+                </button>
+              )}
+              <button
+                onClick={() => setShowMicHelp(!showMicHelp)}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Info className="w-3 h-3 text-cyan-400" />
+                <span>Mic Help</span>
+              </button>
+            </div>
+
+            {showMicHelp && (
+              <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-[10px] font-sans text-slate-300 space-y-1 mt-1">
+                <p className="font-bold text-cyan-300 font-mono uppercase">How to enable Microphone access:</p>
+                <p>1. Click the lock / settings icon on the browser address bar.</p>
+                <p>2. Set <b>Microphone</b> permission to <b>Allow</b>.</p>
+                <p>3. Click "Retry Microphone" above or refresh the page.</p>
+                <p className="text-slate-400 italic mt-1">Note: You can still click any quick command or use text chat even if microphone is disabled!</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* CENTER HOLOGRAPHIC AI CORE */}

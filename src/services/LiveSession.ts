@@ -248,7 +248,7 @@ export class LiveSession {
   /**
    * Start recording microphone and streaming chunks directly to WebSocket
    */
-  private async startMicStreaming() {
+  public async startMicStreaming() {
     try {
       await audioStreamer.startRecording((base64Pcm) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -262,9 +262,13 @@ export class LiveSession {
       // Set state to listening once mic is active
       this.onStateChange('listening');
     } catch (err: any) {
-      console.error('[LiveSession] Mic recording start failed:', err);
-      this.onStateChange('error');
-      this.onError('Microphone access is required to use Shivansh AI Agent. Please enable mic permissions.');
+      console.warn('[LiveSession] Mic recording start failed:', err?.message || err);
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.onStateChange('connected');
+      } else {
+        this.onStateChange('idle');
+      }
+      this.onError('Microphone permission denied or unavailable. Shivansh AI remains fully operational via text commands!');
     }
   }
 

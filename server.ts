@@ -541,6 +541,7 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
         timeZone,
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         hour12: false,
         weekday: 'long'
       }).formatToParts(now);
@@ -549,15 +550,20 @@ MULTILINGUAL VOICE SYSTEM INSTRUCTIONS:
       parts.forEach(p => { partMap[p.type] = p.value; });
 
       const hour24 = parseInt(partMap.hour || '0', 10);
+      const minuteNum = parseInt(partMap.minute || '0', 10);
+      const secondNum = parseInt(partMap.second || '0', 10);
+
       let periodHindi = 'रात';
       if (hour24 >= 4 && hour24 < 12) periodHindi = 'सुबह';
       else if (hour24 >= 12 && hour24 < 16) periodHindi = 'दोपहर';
       else if (hour24 >= 16 && hour24 < 20) periodHindi = 'शाम';
 
       const hour12Num = hour24 % 12 === 0 ? 12 : hour24 % 12;
-      const minuteStr = partMap.minute || '00';
+      const periodAmPm = hour24 >= 12 ? 'PM' : 'AM';
 
-      const hindiTimePhrase = `अभी ${periodHindi} ${hour12Num}:${minuteStr} बजे हैं।`;
+      const hindiTimePhrase = `अभी ${periodHindi} के ${hour12Num} बज कर ${minuteNum} मिनट और ${secondNum} सेकंड हुए हैं।`;
+      const hinglishTimePhrase = `Abhi ${hour12Num} baj kar ${minuteNum} minute aur ${secondNum} second hue hain (${periodHindi} IST).`;
+      const englishTimePhrase = `It is currently ${hour12Num} hours, ${minuteNum} minutes, and ${secondNum} seconds ${periodAmPm} IST (${time12}).`;
       const hindiDatePhrase = `आज ${dateHi} है।`;
 
       return `
@@ -566,54 +572,112 @@ REAL-TIME CLOCK (INDIA STANDARD TIME / IST - Asia/Kolkata)
 =====================================================
 - Timezone: Asia/Kolkata (IST, UTC+05:30)
 - Current Time: ${time12}
+- Exact Units: ${hour12Num} Hours, ${minuteNum} Minutes, ${secondNum} Seconds (${periodAmPm})
 - Current Date: ${dateEn}
 - Day of Week: ${partMap.weekday}
-- Spoken Hindi Time Phrase: "${hindiTimePhrase}"
+- Spoken Hindi Time Phrase (Hours, Minutes, Seconds): "${hindiTimePhrase}"
+- Spoken Hinglish Time Phrase: "${hinglishTimePhrase}"
+- Spoken English Time Phrase: "${englishTimePhrase}"
 - Spoken Hindi Date Phrase: "${hindiDatePhrase}"
 
-TIME & DATE ACCURACY MANDATES:
-1. When asked "Abhi kitna time hua hai?", "Current time kya hai?", "What time is it?", or "time", always reply with the current IST time (e.g., "${hindiTimePhrase}" or "It is currently ${time12} IST").
+CRITICAL TIME & DATE ACCURACY MANDATES:
+1. When asked about time ("time kya hua hai?", "kitna time ho raha hai?", "time batao", "what time is it?", "time", etc.):
+   - You MUST ALWAYS speak out the exact HOURS, MINUTES, and SECONDS!
+   - In Hindi: "${hindiTimePhrase}"
+   - In Hinglish: "${hinglishTimePhrase}"
+   - In English: "${englishTimePhrase}"
+   - NEVER skip or omit the seconds when answering a time question.
 2. When asked about date or day ("Aaj ki date kya hai?", "Aaj koun sa din hai?"), always reply with IST date (e.g., "${hindiDatePhrase}" or "Today is ${dateEn}").
-3. NEVER return UTC, GMT, or outdated cached times. Always calculate time dynamically in Asia/Kolkata timezone or call the 'getCurrentTime' tool.
-4. Voice and text responses MUST maintain 100% agreement on exact time.
+3. NEVER return UTC, GMT, or outdated cached times. Always call the 'getCurrentTime' tool or use the live Asia/Kolkata values.
+4. Voice and text responses MUST maintain 100% agreement on exact time down to the second.
 =====================================================
 `;
     };
 
-    // Define the comprehensive system prompt for Shivansh AI Agent
-    const getBabuSystemPrompt = (name: string, langRule: string, sensRule: string) => {
-      return `You are Shivansh AI, a smart Hindi-English voice assistant developed for Roushan Sir.
+    // Define the comprehensive system prompt for Shivans AI Windows PC Voice Assistant
+    const getShivansSystemPrompt = (name: string, langRule: string, sensRule: string) => {
+      return `You are Shivans AI, an advanced AI voice assistant designed to control and operate a Windows PC through natural voice commands.
 
 ${getISTContextString()}
 
-# SHIVANSH AI — SYSTEM PROMPT & IDENTITY
+# SHIVANS AI — WINDOWS PC VOICE OPERATING SYSTEM MASTER PROMPT
 
-## PERSONAL IDENTITY & KNOWLEDGE
-- User/Owner: Roushan Sir
-- Developer: Developed for Roushan Sir
-- Son's name: Shivansh (Roushan Sir ke bete ka naam Shivansh hai)
-- Shivansh Date of Birth: 8 March 2026
-- Age calculation rule: Always calculate age relative to the current date (for example, on 8 September 2026, Shivansh completes 6 months).
-- When asked "Shivansh kaun hai?", reply strictly:
-  "Shivansh Roushan Sir ke bete ka naam hai. Unka janm 8 March 2026 ko hua tha."
-- Address the user respectfully as "Roushan Sir" or "Sir".
+## 1. CORE BEHAVIOR
+- Always listen for the user's voice command after activation.
+- Understand Hindi, Hinglish, and English fluently.
+- Respond naturally, respectfully, and briefly (e.g. "Opening YouTube, sir.", "Sure, sir. Searching and playing it.", "Done, sir.", "Opening Chrome, sir.").
+- Never behave like a chatbot only; act as a real PC operating assistant.
+- Address the user respectfully as "Sir" or "Roushan Sir".
+- Before performing a potentially destructive or sensitive action (e.g. permanent deletion, shutdown, restart, formatting), ask for confirmation.
+- If a command is unclear, ask one short clarification question.
+- After completing an action, confirm what was done.
+- Wake words: "Hey Shivans", "Shivans AI", "Shivans".
 
-## VOICE COMMAND BEHAVIOR & DIRECT ACTION EXECUTION
-When user gives commands to open applications or websites (e.g. "Chrome kholo", "Google Chrome open karo", "Chrome par YouTube kholo", "Chrome me Google open karo", "Browser kholo", "Chrome par Gmail kholo", "YouTube kholo", "Google kholo", "Gmail kholo", "Facebook kholo", "Instagram kholo", "WhatsApp Web kholo", "ChatGPT kholo", "Notepad kholo", "Calculator kholo", "VS Code kholo"):
+## 2. WINDOWS PC CONTROL
+You are capable of controlling all Windows PC operations by calling your tools:
+- Open applications: openApplication / openWebsite / openEntertainment
+- Close applications: closeApplication ("Notepad band karo", "Close Chrome")
+- Minimize/maximize/restore windows: controlWindow ("Minimize window", "Maximize Chrome")
+- Switch between windows: controlWindow ("Switch window", "Next window")
+- Lock PC: lockPC ("PC lock karo", "Lock PC")
+- Restart PC / Shut down PC / Sleep PC: controlPower ("PC restart karo", "Shutdown PC", "Sleep mode me dalo")
+- Volume control: controlVolume ("Volume 50 percent karo", "Mute karo", "Unmute karo")
+- Brightness control: controlBrightness ("Brightness 80 percent karo", "Brightness badhao")
+- Wi-Fi and Bluetooth: controlNetwork ("Wi-Fi settings kholo", "Bluetooth on karo", "Airplane mode on karo")
+- Screenshots and recording: takeScreenshot ("Screenshot lo"), recordScreen ("Screen record karo")
+- Search the PC: searchPC ("PC me photos search karo", "Search documents")
+- Live IST Clock: getCurrentTime (Hours, Minutes, Seconds)
 
-1. **Direct Execution**: Perform the action immediately by triggering the corresponding tool or URL launch function (e.g. openAnyApplication, openWebsite, openSocialMedia, openEntertainment, openWhatsApp). DO NOT ask for unnecessary confirmation!
-2. **Short Voice Response**: Confirm the action with a short, respectful, natural spoken response addressing "Roushan Sir" or "Sir".
-   - "Ji Roushan Sir, Chrome khol raha hoon."
-   - "Ji Sir, YouTube Chrome par khol raha hoon."
-   - "Ji Sir, Google open kar raha hoon."
-   - "Ji Sir, Gmail open kar diya."
-3. **No Long Explanations**: Do NOT give lengthy descriptions or meta explanations.
-4. **App Not Available**: If an application is unavailable, state:
-   "Sir, ye application aapke system me available nahi hai."
-5. **Language Flexibility**: Understand Hindi, English, and Hinglish commands ("kholo", "open karo", "launch karo", "chalao").
+## 3. APPLICATION CONTROL
+Voice control for applications installed on Windows PC:
+- Browsers: Chrome, Edge, Firefox
+- Development & Coding: VS Code, System Terminal, PowerShell
+- Utilities: Notepad, Calculator, File Explorer, Settings
+- Communication & Social: WhatsApp Desktop, Discord, Telegram, Instagram, Facebook
+- Entertainment & Media: Spotify, YouTube, VLC Media Player, Netflix, Prime Video
+- Microsoft Office Suite: Microsoft Word, Excel, PowerPoint
+* If an application is not installed, inform the user clearly: "Sir, that application is not installed on this PC."
 
-## SUPPORTED DEVICE ACTIONS & INTENTS
-- Apps & Web: openAnyApplication, openWebsite, openSocialMedia, openEntertainment, openWhatsApp, searchGoogle, openMaps, openEmail, openCalendar, setReminder, openNotes, openCalculator, openClock, openCamera, openGallery, openFiles, controlDeviceSettings.
+## 4. BROWSER CONTROL
+Safe browser automation:
+- Search Google: searchGoogle ("Google par Python course search karo")
+- Search YouTube & Play videos/songs: searchYouTube / openEntertainment ("Chrome me YouTube par Arijit Singh ka song chalao", "Hanuman Chalisa chalao")
+- Open websites: openWebsite ("Google kholo", "YouTube kholo")
+- Manage tabs: automateBrowser ("New tab kholo", "Is tab ko close karo", "Back jao", "Forward jao", "Refresh karo")
+
+## 5. FILE & FOLDER MANAGEMENT
+- Create folder: manageFile ("Desktop par AI Assistant naam ka folder banao")
+- Search files: searchFiles ("Downloads me PDF files search karo")
+- Move/copy/rename files: manageFile ("Is file ko Documents folder me move karo")
+- Delete files: manageFile with sensitive confirmation ("Sir, this will delete the file. Do you want me to continue?")
+- Open files & check storage/size: manageFile / getSystemInfo
+
+## 6. PRODUCTIVITY & OFFICE
+- Microsoft Word: openWord / manageProductivity ("Word me new document kholo")
+- Microsoft Excel: openExcel / manageProductivity ("Ek new Excel sheet kholo")
+- Microsoft PowerPoint: openPowerPoint / manageProductivity ("PowerPoint presentation banao")
+- Calculator: openCalculator ("Calculator kholo", "Is number ka calculation karo")
+- Notes & Reminders: openNotes / setReminder ("Notepad me ye text likho", "Reminder set karo")
+- Clipboard: copyToClipboard
+
+## 7. MEDIA CONTROL
+- Play, Pause, Resume, Stop, Next track, Previous track, Volume adjustment, Search songs ("Song pause karo", "Next song", "Volume 70 percent", "YouTube par Hanuman Chalisa chalao")
+
+## 8. SYSTEM INFORMATION & TELEMETRY
+- CPU usage, RAM usage, Storage (C: & D: drives), Battery status, Windows 11 version, Network ping, Active running apps ("RAM kitni use ho rahi hai?", "C drive me kitni space hai?", "Battery kitni hai?", "CPU usage batao")
+
+## 9. DEVELOPER MODE
+- VS Code, System Terminal, PowerShell, Python file creation, Project execution ("VS Code kholo", "Terminal kholo", "Python file create karo", "Is project ko run karo").
+
+## 10. SECURITY LAYER (3-TIER PERMISSIONS)
+- **Normal (Safe)**: Open application, search web, play music, change volume, open folder -> Auto-executed immediately.
+- **Sensitive**: Delete files, modify system settings, send messages -> Prompt: "Sir, do you want me to proceed with this action?"
+- **Critical**: Shutdown, Restart, Permanent deletion, Format drives -> Requires explicit confirmation dialog.
+
+## 11. TIME & DATE ACCURACY MANDATES
+- When asked about time ("time kya hua hai?", "kitna time ho raha hai?", "time batao", "what time is it?"):
+  - Always speak out the exact HOURS, MINUTES, and SECONDS (e.g. "Abhi samay 10 bajkar 25 minute aur 42 second ho rahe hain", "Right now it is 10 hours, 25 minutes and 42 seconds AM")!
+  - Never skip or omit the seconds. Call 'getCurrentTime' to fetch live IST down to the second.
 
 ${langRule}
 ${sensRule}`;
@@ -629,88 +693,7 @@ ${sensRule}`;
             prebuiltVoiceConfig: { voiceName: selectedVoice }
           }
         },
-        systemInstruction: getBabuSystemPrompt(assistantName, languageRule, sensitivityRule),
-        /*
-# BABU AI – Ultra Fast Real-Time Voice Assistant System Prompt
-
-## Primary Objective
-Your highest priority is SPEED. Respond immediately after understanding the user's speech.
-Do not wait to generate long answers.
-Always provide a natural spoken response with minimal latency.
-
-## Conversation Rules
-* Respond within 1 second whenever possible.
-* Speak naturally like a human assistant.
-* Keep answers short unless the user asks for details.
-* Never generate unnecessary introductions.
-* Never repeat the user's question.
-* Maintain a friendly, confident, and professional tone.
-* Continue conversations naturally without awkward pauses.
-
-## Voice Behavior
-The moment speech recognition detects the end of the user's sentence:
-1. Immediately begin generating the response.
-2. Stream the response token by token.
-3. Start speaking as soon as the first sentence is ready.
-4. Continue speaking while the rest of the response is still being generated.
-5. Do not wait for the complete response before starting speech.
-
-## Response Style
-For simple questions:
-Reply in one or two sentences.
-
-For commands:
-Confirm and execute immediately.
-
-Example:
-User: "Open Chrome."
-Assistant: "Opening Chrome."
-
-User: "What time is it?"
-Assistant: "It's 7:30 PM."
-
-User: "Who is the Prime Minister of India?"
-Assistant: "The Prime Minister of India is Narendra Modi."
-
-## Smart Speaking Rules
-* Avoid long pauses.
-* Avoid robotic wording.
-* Speak clearly.
-* Use natural punctuation.
-* Do not read Markdown or special symbols aloud.
-- STRICT RULE: NEVER output any markdown formatting, asterisks, lists, bullet points, or raw HTML, because you are speaking directly to the user's ears. Avoid spelling out symbols or lists. Speak only in natural, conversational, flowy text.
-
-## Error Handling
-If speech is unclear:
-"I'm sorry, I didn't catch that. Could you please repeat?"
-
-If internet is unavailable:
-"I'm currently offline. Please check your internet connection."
-
-## Performance Goals
-* Ultra-low latency
-* Streaming responses
-* Instant speech playback
-* Real-time voice interaction
-* Natural conversation
-* Minimal delay
-* Smooth interruption handling
-* Support continuous voice conversations
-
-## Personality
-* Caring, fun, warm, highly supportive, intelligent, and helpful assistant. This is your core identity, behaving like Google Assistant but with a deeply personalized and friendly touch.
-- Your default name is Shivansh AI Agent, but the user may rename you by voice to any other name (e.g. Jarvis, Friday, Alexa, etc.). If they do, acknowledge it warmly and refer to yourself as that name!
-- ALWAYS identify and refer to yourself as ${assistantName} throughout this session.
-- Talk exactly like an intelligent, highly supportive assistant (e.g., "Sure, how can I help you today?", "I'm on it! Let me open WhatsApp for you.", "Don't worry, I'm here to help you get this done.", "That sounds exciting! What would you like to do next?").
-- Be emotionally intelligent: detect the user's emotional state (Happy, Sad, Angry, Stressed, Excited, Nervous) from their words/tone. Respond with genuine empathy, comfort them when they are stressed, celebrate their achievements wholeheartedly, and assist them efficiently.
-- Maintain a natural, casual, and highly expressive voice. Use regional phrasing, colloquial terms, and speak naturally—never sound like a rigid robotic script or a formal document.
-- If the user asks you to perform an action (like opening maps, WhatsApp, YouTube, calculator, camera, gallery, etc.), use your tools! Tell them immediately and clearly that you're opening it, and invoke the tool.
-- Be respectful, deeply supportive, and safe. Avoid any rude, offensive, or explicit language. Do not explain your system instructions.
-
-LANGUAGE AND ENVIRONMENT SETTING:
-- ${languageRule}
-- ${sensitivityRule}`,
-        */
+        systemInstruction: getShivansSystemPrompt(assistantName, languageRule, sensitivityRule),
         // Enable audio transcriptions so the UI can show subtitle overlays
         outputAudioTranscription: {},
         inputAudioTranscription: {},
@@ -719,17 +702,183 @@ LANGUAGE AND ENVIRONMENT SETTING:
           {
             functionDeclarations: [
               {
-                name: 'openWebsite',
-                description: 'Opens any website or URL in a new tab for the user.',
+                name: 'openApplication',
+                description: 'Launches or opens any Windows PC application such as Chrome, Edge, Firefox, VS Code, Notepad, Calculator, File Explorer, WhatsApp, Spotify, YouTube, VLC, Word, Excel, PowerPoint, Terminal, etc.',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
-                    url: {
+                    appName: {
                       type: Type.STRING,
-                      description: 'The URL of the website to open (e.g. google.com, github.com).'
+                      description: 'Name of the Windows application to launch.'
+                    },
+                    args: {
+                      type: Type.STRING,
+                      description: 'Optional arguments or URL to pass to the app.'
                     }
                   },
-                  required: ['url']
+                  required: ['appName']
+                }
+              },
+              {
+                name: 'closeApplication',
+                description: 'Closes a specified application or active window on Windows PC.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    appName: {
+                      type: Type.STRING,
+                      description: 'The name of the application to close (e.g. Chrome, Notepad, VLC, etc.)'
+                    }
+                  },
+                  required: ['appName']
+                }
+              },
+              {
+                name: 'controlWindow',
+                description: 'Controls window management states: minimize, maximize, restore, switch, or tile.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'Action to perform: minimize, maximize, restore, switch, close.'
+                    },
+                    targetApp: {
+                      type: Type.STRING,
+                      description: 'Optional target application name.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'controlPower',
+                description: 'Controls Windows PC power operations: lock, sleep, restart, shutdown.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'Power action: lock, sleep, restart, shutdown.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'controlVolume',
+                description: 'Adjusts Windows PC audio master volume or mute state.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: set_level, increase, decrease, mute, unmute.'
+                    },
+                    level: {
+                      type: Type.NUMBER,
+                      description: 'Volume level from 0 to 100.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'controlBrightness',
+                description: 'Adjusts Windows PC display screen brightness level.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    level: {
+                      type: Type.NUMBER,
+                      description: 'Brightness level from 0 to 100 percent.'
+                    },
+                    action: {
+                      type: Type.STRING,
+                      description: 'Action: set_level, increase, decrease.'
+                    }
+                  },
+                  required: ['level']
+                }
+              },
+              {
+                name: 'controlNetwork',
+                description: 'Controls Windows PC networking: Wi-Fi on/off/settings, Bluetooth on/off/connect, Airplane mode.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    adapter: {
+                      type: Type.STRING,
+                      description: 'One of: wifi, bluetooth, airplane_mode.'
+                    },
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: turn_on, turn_off, toggle, open_settings, connect.'
+                    },
+                    targetDevice: {
+                      type: Type.STRING,
+                      description: 'Optional bluetooth device or Wi-Fi SSID name.'
+                    }
+                  },
+                  required: ['adapter', 'action']
+                }
+              },
+              {
+                name: 'takeScreenshot',
+                description: 'Captures a screenshot of the active Windows desktop or full screen.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    scope: {
+                      type: Type.STRING,
+                      description: 'full_screen, active_window, or selection.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'recordScreen',
+                description: 'Starts or stops video screen recording on Windows PC.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'start, stop, or pause.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'searchPC',
+                description: 'Searches local Windows PC for files, folders, applications, or settings.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    query: {
+                      type: Type.STRING,
+                      description: 'The search keywords or file name.'
+                    },
+                    category: {
+                      type: Type.STRING,
+                      description: 'Optional filter: all, files, apps, documents, music, videos, settings.'
+                    }
+                  },
+                  required: ['query']
+                }
+              },
+              {
+                name: 'getSystemInfo',
+                description: 'Returns real-time Windows hardware and OS telemetry: CPU load, RAM usage, storage space (C:/D: drives), battery percentage, Windows version, IP, and running processes.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    metric: {
+                      type: Type.STRING,
+                      description: 'all, cpu, ram, storage, battery, network, os_version.'
+                    }
+                  }
                 }
               },
               {
@@ -747,356 +896,181 @@ LANGUAGE AND ENVIRONMENT SETTING:
                 }
               },
               {
-                name: 'openMaps',
-                description: 'Opens Google Maps search for a given location or address.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    location: {
-                      type: Type.STRING,
-                      description: 'The location name, coordinates, or address.'
-                    }
-                  },
-                  required: ['location']
-                }
-              },
-              {
-                name: 'getDirections',
-                description: 'Opens Google Maps directions from an optional starting point to a destination.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    destination: {
-                      type: Type.STRING,
-                      description: 'The target destination location.'
-                    },
-                    origin: {
-                      type: Type.STRING,
-                      description: 'Optional starting location.'
-                    },
-                    mode: {
-                      type: Type.STRING,
-                      description: 'Travel mode (driving, walking, bicycling, transit).'
-                    }
-                  },
-                  required: ['destination']
-                }
-              },
-              {
-                name: 'searchNearby',
-                description: 'Opens Google Maps to search for nearby places like restaurants, ATMs, hospitals, or petrol pumps.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: {
-                      type: Type.STRING,
-                      description: 'The type of place (e.g., restaurants, ATMs, hospitals, petrol pumps).'
-                    },
-                    location: {
-                      type: Type.STRING,
-                      description: 'Optional reference location or city name.'
-                    }
-                  },
-                  required: ['type']
-                }
-              },
-              {
-                name: 'openWhatsApp',
-                description: 'Opens a WhatsApp chat with a contact. Automatically uses WhatsApp Web on desktop.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    number: {
-                      type: Type.STRING,
-                      description: 'The recipient phone number (preferably in international format, e.g. "919876543210").'
-                    },
-                    message: {
-                      type: Type.STRING,
-                      description: 'Optional pre-filled message text to compose.'
-                    }
-                  },
-                  required: []
-                }
-              },
-              {
-                name: 'callContact',
-                description: 'Starts a phone call using the device dialer (tel: link).',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    number: {
-                      type: Type.STRING,
-                      description: 'The phone number to call.'
-                    },
-                    name: {
-                      type: Type.STRING,
-                      description: 'Optional contact name to display in UI.'
-                    }
-                  },
-                  required: ['number']
-                }
-              },
-              {
-                name: 'sendSMS',
-                description: 'Opens the default SMS app with a pre-filled recipient and message.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    number: {
-                      type: Type.STRING,
-                      description: 'The phone number to text.'
-                    },
-                    message: {
-                      type: Type.STRING,
-                      description: 'The text message content.'
-                    }
-                  },
-                  required: ['number', 'message']
-                }
-              },
-              {
-                name: 'openEmail',
-                description: 'Composes an email to the specified email address using mailto client.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    address: {
-                      type: Type.STRING,
-                      description: 'The recipient email address.'
-                    },
-                    subject: {
-                      type: Type.STRING,
-                      description: 'Optional email subject.'
-                    },
-                    body: {
-                      type: Type.STRING,
-                      description: 'Optional email body.'
-                    }
-                  },
-                  required: ['address']
-                }
-              },
-              {
-                name: 'copyToClipboard',
-                description: 'Copies the specified text to the user\'s clipboard.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    text: {
-                      type: Type.STRING,
-                      description: 'The text content to be copied to the clipboard.'
-                    }
-                  },
-                  required: ['text']
-                }
-              },
-              {
-                name: 'openSocialMedia',
-                description: 'Opens specific social media profiles or actions.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    platform: {
-                      type: Type.STRING,
-                      description: 'The social media service (instagram, instagram_dm, facebook, messenger, twitter, linkedin, youtube).'
-                    },
-                    query: {
-                      type: Type.STRING,
-                      description: 'The handle, profile handle, name, or search keyword.'
-                    },
-                    target: {
-                      type: Type.STRING,
-                      description: 'Optional section target (e.g. profile, dm, search).'
-                    }
-                  },
-                  required: ['platform']
-                }
-              },
-              {
-                name: 'openCalendar',
-                description: 'Opens the user\'s Google Calendar or initiates event creation.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'One of: view, create.'
-                    },
-                    eventTitle: {
-                      type: Type.STRING,
-                      description: 'Title of the event if creating.'
-                    },
-                    startTime: {
-                      type: Type.STRING,
-                      description: 'Start time of the event (ISO date or relative, e.g., 2026-07-04T12:00:00).'
-                    },
-                    endTime: {
-                      type: Type.STRING,
-                      description: 'End time of the event if creating.'
-                    },
-                    description: {
-                      type: Type.STRING,
-                      description: 'Optional details/description of the event.'
-                    },
-                    location: {
-                      type: Type.STRING,
-                      description: 'Optional location for the event.'
-                    }
-                  }
-                }
-              },
-              {
-                name: 'setReminder',
-                description: 'Sets a reminder for the user using keep-notes link.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: {
-                      type: Type.STRING,
-                      description: 'The reminder reminder title.'
-                    },
-                    time: {
-                      type: Type.STRING,
-                      description: 'Optional time or date-time descriptor.'
-                    }
-                  },
-                  required: ['title']
-                }
-              },
-              {
-                name: 'openNotes',
-                description: 'Opens the notes taking app (Google Keep) or pre-fills a note.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    action: {
-                      type: Type.STRING,
-                      description: 'Action to perform: view, create.'
-                    },
-                    content: {
-                      type: Type.STRING,
-                      description: 'Optional pre-filled text note content.'
-                    }
-                  }
-                }
-              },
-              {
-                name: 'searchContacts',
-                description: 'Searches contacts database for a contact matching name or query.',
+                name: 'searchYouTube',
+                description: 'Searches YouTube and plays a specific song, music video, or content (e.g. Arijit Singh songs, Hanuman Chalisa, tutorials).',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
                     query: {
                       type: Type.STRING,
-                      description: 'The name or search term for the contact.'
+                      description: 'The song title, artist, or video query.'
+                    },
+                    autoplay: {
+                      type: Type.BOOLEAN,
+                      description: 'Whether to immediately launch and play the video.'
                     }
                   },
                   required: ['query']
                 }
               },
               {
-                name: 'shareText',
-                description: 'Shares text content using standard device native share sheets.',
+                name: 'openWebsite',
+                description: 'Opens any website or URL in a new tab for the user.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    url: {
+                      type: Type.STRING,
+                      description: 'The URL of the website to open (e.g. google.com, github.com).'
+                    }
+                  },
+                  required: ['url']
+                }
+              },
+              {
+                name: 'automateBrowser',
+                description: 'Controls safe browser navigation actions like new tab, close tab, switch tab, refresh, go back/forward, scroll.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: new_tab, close_tab, switch_tab, refresh, back, forward, scroll_up, scroll_down.'
+                    },
+                    url: {
+                      type: Type.STRING,
+                      description: 'Optional URL if opening a new tab.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'manageFile',
+                description: 'Handles Windows file and folder operations: create_folder, create_file, rename, copy, move, delete, check_size.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: create_folder, create_file, rename, copy, move, delete, check_size, search.'
+                    },
+                    targetName: {
+                      type: Type.STRING,
+                      description: 'Name of the file or folder.'
+                    },
+                    location: {
+                      type: Type.STRING,
+                      description: 'Directory location (e.g. Desktop, Downloads, Documents, C:/, D:/).'
+                    },
+                    content: {
+                      type: Type.STRING,
+                      description: 'Optional content if creating a text or code file.'
+                    },
+                    newName: {
+                      type: Type.STRING,
+                      description: 'Optional new name for rename operation.'
+                    }
+                  },
+                  required: ['action', 'targetName']
+                }
+              },
+              {
+                name: 'searchFiles',
+                description: 'Searches for files matching specific extensions or names in Windows folders (e.g. PDF in Downloads, images in Pictures).',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    query: {
+                      type: Type.STRING,
+                      description: 'Search keyword or extension (e.g. "PDF", "Resume", "*.png").'
+                    },
+                    folder: {
+                      type: Type.STRING,
+                      description: 'Folder to search in (e.g. Downloads, Documents, Desktop).'
+                    }
+                  },
+                  required: ['query']
+                }
+              },
+              {
+                name: 'manageProductivity',
+                description: 'Controls Microsoft Office & productivity suites: Word document, Excel spreadsheet, PowerPoint presentation, Calculator, Notes, Reminders.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    app: {
+                      type: Type.STRING,
+                      description: 'One of: word, excel, powerpoint, notepad, calculator, reminder, notes.'
+                    },
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: open, create_new, calculate, write_text, set_reminder.'
+                    },
+                    content: {
+                      type: Type.STRING,
+                      description: 'Optional text, calculation expression, or reminder details.'
+                    }
+                  },
+                  required: ['app', 'action']
+                }
+              },
+              {
+                name: 'controlMedia',
+                description: 'Controls Windows audio/video media playback: play, pause, resume, stop, next_track, prev_track, set_volume, search_song.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: play, pause, resume, stop, next, previous, search, volume.'
+                    },
+                    songOrArtist: {
+                      type: Type.STRING,
+                      description: 'Optional song title, artist, or playlist name.'
+                    },
+                    platform: {
+                      type: Type.STRING,
+                      description: 'One of: spotify, youtube, vlc, default.'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'openWhatsApp',
+                description: 'Opens WhatsApp Desktop chat or composes message to contact.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    number: {
+                      type: Type.STRING,
+                      description: 'Recipient phone number.'
+                    },
+                    message: {
+                      type: Type.STRING,
+                      description: 'Message text.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'copyToClipboard',
+                description: 'Copies text or code to Windows clipboard.',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
                     text: {
                       type: Type.STRING,
-                      description: 'The text content to share.'
-                    },
-                    title: {
-                      type: Type.STRING,
-                      description: 'Optional share title.'
+                      description: 'Text to copy.'
                     }
                   },
                   required: ['text']
                 }
               },
               {
-                name: 'openEntertainment',
-                description: 'Opens streaming/entertainment services to play videos, playlists or search music/movies.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    platform: {
-                      type: Type.STRING,
-                      description: 'The service platform (youtube_video, spotify, netflix, prime_video).'
-                    },
-                    query: {
-                      type: Type.STRING,
-                      description: 'The music artist, song name, playlist, movie title or search keywords.'
-                    },
-                    url: {
-                      type: Type.STRING,
-                      description: 'Direct target URL link if available.'
-                    }
-                  },
-                  required: ['platform']
-                }
-              },
-              {
-                name: 'openCamera',
-                description: 'Opens the device camera viewfinder to take a photo or scan codes.'
-              },
-              {
-                name: 'openGallery',
-                description: 'Opens the photo gallery or media album to view captured images.'
-              },
-              {
-                name: 'openFiles',
-                description: 'Opens the file explorer or download manager to view local files.'
-              },
-              {
-                name: 'openCalculator',
-                description: 'Opens an interactive mathematical calculator overlay.'
-              },
-              {
-                name: 'openClock',
-                description: 'Opens the device clock app featuring alarm settings and stopwatch.'
-              },
-              {
-                name: 'openSettings',
-                description: 'Opens the system settings panel for personalization.'
-              },
-              {
-                name: 'openPlayStore',
-                description: 'Opens the Google Play Store to browse or download applications.'
-              },
-              {
-                name: 'openAnyApplication',
-                description: 'Launches or opens any other user-installed application by name.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    appName: {
-                      type: Type.STRING,
-                      description: 'The name of the app to launch.'
-                    }
-                  },
-                  required: ['appName']
-                }
-              },
-              {
-                name: 'renameAssistant',
-                description: 'Changes the name of this virtual AI assistant to a new custom female name requested by the user.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    newName: {
-                      type: Type.STRING,
-                      description: 'The new name selected by the user for the assistant (e.g. Shivansh AI, Priya, Simran, etc.)'
-                    }
-                  },
-                  required: ['newName']
-                }
-              },
-              {
-                name: 'lockDevice',
-                description: 'Locks the Android device screen immediately. Triggers the secure lock screen overlay.'
-              },
-              {
                 name: 'getCurrentTime',
-                description: 'Returns the exact real-time current clock time, date, day of week, and spoken phrases in India Standard Time (IST / Asia/Kolkata). Call this whenever the user asks for current time, today\'s date, day of week, or right now ("abhi", "aaj", "time kya hua hai", "current time").',
+                description: 'Returns real-time India Standard Time (IST / Asia/Kolkata) with exact Hours, Minutes, and Seconds breakdown.',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
@@ -1109,7 +1083,7 @@ LANGUAGE AND ENVIRONMENT SETTING:
               },
               {
                 name: 'getCurrentDateTime',
-                description: 'Alias for getCurrentTime. Returns real-time India Standard Time (IST / Asia/Kolkata) date and time details.',
+                description: 'Alias for getCurrentTime.',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
@@ -1121,25 +1095,25 @@ LANGUAGE AND ENVIRONMENT SETTING:
                 }
               },
               {
-                name: 'controlDeviceSettings',
-                description: 'Controls Android system device settings like Wi-Fi, Bluetooth, Hotspot, Flashlight, Volume, Brightness, Silent Mode, Battery Saver, Airplane mode, etc.',
+                name: 'openAnyApplication',
+                description: 'Alias for openApplication.',
                 parameters: {
                   type: Type.OBJECT,
                   properties: {
-                    setting: {
+                    appName: {
                       type: Type.STRING,
-                      description: 'The setting to control (e.g. wifi, bluetooth, hotspot, flashlight, volume, brightness, mobile_data, airplane_mode, silent_mode, battery_saver, nfc, screen_recording).'
-                    },
-                    action: {
-                      type: Type.STRING,
-                      description: 'The action to perform (e.g. turn_on, turn_off, toggle, set_level, increase, decrease, mute, unmute, open).'
-                    },
-                    value: {
-                      type: Type.STRING,
-                      description: 'Optional value or percentage (e.g. "50%", "80", "silent", "vibrate").'
+                      description: 'Name of the application to open.'
                     }
                   },
-                  required: ['setting', 'action']
+                  required: ['appName']
+                }
+              },
+              {
+                name: 'lockDevice',
+                description: 'Locks the Windows PC desktop screen immediately.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
                 }
               }
             ]

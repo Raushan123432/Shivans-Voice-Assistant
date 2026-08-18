@@ -153,6 +153,15 @@ export function useLiveSession() {
     liveSession.sendTextMessage(text);
   }, []);
 
+  const clearError = useCallback(() => {
+    setErrorMessage(null);
+  }, []);
+
+  const retryMic = useCallback(() => {
+    setErrorMessage(null);
+    liveSession.startMicStreaming();
+  }, []);
+
   const isConnected = appState !== 'disconnected' && appState !== 'error' && appState !== 'connecting' && appState !== 'reconnecting';
 
   return {
@@ -174,7 +183,9 @@ export function useLiveSession() {
     changeSpeakingRate,
     changeAssistantName,
     changeEmotion,
-    sendTextMessage
+    sendTextMessage,
+    clearError,
+    retryMic
   };
 }
 

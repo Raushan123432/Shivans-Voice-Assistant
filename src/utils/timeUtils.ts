@@ -8,15 +8,22 @@ export interface ISTTimeInfo {
   timeZone: string;
   time12: string;
   time24: string;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  periodAmPm: string;
   dateEn: string;
   dateHi: string;
   dayEn: string;
   dayHi: string;
   periodHindi: string;
   hindiTimePhrase: string;
+  hindiTimeDetailed: string;
   hindiDatePhrase: string;
   englishTimePhrase: string;
+  englishTimeDetailed: string;
   englishDatePhrase: string;
+  hinglishTimePhrase: string;
   summaryPrompt: string;
 }
 
@@ -63,7 +70,7 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
   });
   const dateHi = dateHiFormatter.format(dateObj);
 
-  // Parse parts to determine exact hour, minute, period
+  // Parse parts to determine exact hour, minute, second, period
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
     year: 'numeric',
@@ -71,6 +78,7 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
     weekday: 'long'
   }).formatToParts(dateObj);
@@ -81,6 +89,9 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
   });
 
   const hour24 = parseInt(partMap.hour || '0', 10);
+  const minuteNum = parseInt(partMap.minute || '0', 10);
+  const secondNum = parseInt(partMap.second || '0', 10);
+
   let periodHindi = 'रात';
   if (hour24 >= 4 && hour24 < 12) {
     periodHindi = 'सुबह';
@@ -91,7 +102,7 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
   }
 
   const hour12Num = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  const minuteStr = partMap.minute || '00';
+  const periodAmPm = hour24 >= 12 ? 'PM' : 'AM';
 
   const dayEn = partMap.weekday || 'Today';
 
@@ -106,18 +117,24 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
   };
   const dayHi = hindiDayNames[dayEn] || dayEn;
 
-  const hindiTimePhrase = `अभी ${periodHindi} ${hour12Num}:${minuteStr} बजे हैं।`;
+  // Complete detailed spoken phrases with hours, minutes, and seconds
+  const hindiTimePhrase = `अभी ${periodHindi} के ${hour12Num} बज कर ${minuteNum} मिनट और ${secondNum} सेकंड हुए हैं।`;
+  const hindiTimeDetailed = `अभी ${hour12Num} घंटे, ${minuteNum} मिनट और ${secondNum} सेकंड हुए हैं (${periodHindi} ${periodAmPm})।`;
+  const hinglishTimePhrase = `Abhi ${hour12Num} baj kar ${minuteNum} minute aur ${secondNum} second hue hain (${periodHindi} IST).`;
+  const englishTimePhrase = `It is currently ${hour12Num} hours, ${minuteNum} minutes, and ${secondNum} seconds ${periodAmPm} IST (${time12}).`;
+  const englishTimeDetailed = `The exact time is ${hour12Num} hours, ${minuteNum} minutes, and ${secondNum} seconds ${periodAmPm} IST.`;
   const hindiDatePhrase = `आज ${dateHi} है।`;
-  const englishTimePhrase = `It is currently ${time12} IST.`;
   const englishDatePhrase = `Today is ${dateEn}.`;
 
   const summaryPrompt = `[CURRENT SYSTEM TIME & DATE - INDIA STANDARD TIME (IST / Asia/Kolkata)]:
 - Real-Time Clock: ${time12} (24-Hour: ${time24})
+- Exact Breakdown: ${hour12Num} Hours, ${minuteNum} Minutes, ${secondNum} Seconds (${periodAmPm})
 - Date: ${dateEn}
 - Day of Week: ${dayEn} (${dayHi})
-- Spoken Hindi Time Output: "${hindiTimePhrase}"
-- Spoken Hindi Date Output: "${hindiDatePhrase}"
+- Spoken Hindi Time Output (Hours, Minutes, Seconds): "${hindiTimePhrase}"
+- Spoken Hinglish Time Output: "${hinglishTimePhrase}"
 - Spoken English Time Output: "${englishTimePhrase}"
+- Spoken Hindi Date Output: "${hindiDatePhrase}"
 - Spoken English Date Output: "${englishDatePhrase}"`;
 
   return {
@@ -125,15 +142,22 @@ export function getISTTimeDetails(dateObj: Date = new Date()): ISTTimeInfo {
     timeZone,
     time12,
     time24,
+    hours: hour12Num,
+    minutes: minuteNum,
+    seconds: secondNum,
+    periodAmPm,
     dateEn,
     dateHi,
     dayEn,
     dayHi,
     periodHindi,
     hindiTimePhrase,
+    hindiTimeDetailed,
     hindiDatePhrase,
     englishTimePhrase,
+    englishTimeDetailed,
     englishDatePhrase,
+    hinglishTimePhrase,
     summaryPrompt
   };
 }

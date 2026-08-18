@@ -183,8 +183,14 @@ export class AudioStreamer {
           this.onAudioInputCallback(base64);
         }
       };
-    } catch (e) {
-      console.error('[AudioStreamer] Failed to start recording:', e);
+    } catch (e: any) {
+      this.stopRecording();
+      const isPermDenied = e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError' || String(e?.message).includes('Permission denied');
+      if (isPermDenied) {
+        console.warn('[AudioStreamer] Microphone permission denied by browser or environment settings.');
+      } else {
+        console.warn('[AudioStreamer] Failed to initialize microphone input:', e);
+      }
       throw e;
     }
   }

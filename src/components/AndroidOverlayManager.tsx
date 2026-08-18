@@ -368,7 +368,7 @@ export function AndroidOverlayManager({
                       </div>
                       <div className="text-xs font-mono font-bold text-zinc-300">Virtual Camera lens active</div>
                       <div className="text-[10px] text-zinc-500 leading-relaxed max-w-xs">
-                        Physical camera blocked or denied. Babu AI has connected a simulated digital particle lens! Click take photo below.
+                        Physical camera blocked or denied. Shivansh AI has connected a simulated digital particle lens! Click take photo below.
                       </div>
                     </div>
                   )}
@@ -1128,11 +1128,11 @@ export function AndroidOverlayManager({
                   {/* Secure status */}
                   <div className="mt-3 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-[9px] font-mono font-bold text-rose-400/90 tracking-wider flex items-center gap-1.5 uppercase">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                    Device Locked via Babu AI
+                    Device Locked via Shivansh AI
                   </div>
                 </div>
 
-                {/* Babu AI Notification Card on Lock Screen */}
+                {/* Shivansh AI Notification Card on Lock Screen */}
                 <motion.div 
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -1144,11 +1144,11 @@ export function AndroidOverlayManager({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-0.5">
-                      <span className="text-xs font-bold text-zinc-200">Babu AI Assistant</span>
+                      <span className="text-xs font-bold text-zinc-200">Shivansh AI Assistant</span>
                       <span className="text-[8px] font-mono text-zinc-500">Just Now</span>
                     </div>
                     <p className="text-[10px] text-zinc-400 leading-normal font-sans">
-                      Device locked instantly via secure voice command. Android security protocols fully active.
+                      Device locked instantly via secure voice command. Windows security protocols fully active.
                     </p>
                   </div>
                 </motion.div>
