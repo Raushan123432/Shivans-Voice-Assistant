@@ -51,18 +51,55 @@ export const MusicTab: React.FC = () => {
 
   // Load saved tracks from localStorage on mount
   useEffect(() => {
+    const defaultInitialTracks: MusicTrack[] = [
+      {
+        id: 'track-bhojpuri-1',
+        prompt: 'Bhojpuri Superhit Dance Party (Dholak & Brass Remix)',
+        model: 'Lyria Desi Fusion',
+        duration: 'short',
+        audioUrl: '',
+        lyrics: 'Lollipop lagelu ho... DJ remix high bass beat arranged with live dholak, harmonium and energetic vocals.',
+        timestamp: 'Bhojpuri Superhit',
+        hasImage: false
+      },
+      {
+        id: 'track-hindi-1',
+        prompt: 'Arijit Singh Style Romantic Hindi Acoustic Ballad',
+        model: 'Lyria Melodic Pro',
+        duration: 'short',
+        audioUrl: '',
+        lyrics: 'Kesariya tera ishq hai piya... Warm acoustic guitar with soulful bansuri and emotional piano progressions.',
+        timestamp: 'Hindi Romantic',
+        hasImage: false
+      },
+      {
+        id: 'track-bhojpuri-2',
+        prompt: 'Khesari Lal Yadav Style Desi Bhojpuri Bass Blast',
+        model: 'Lyria Desi Fusion',
+        duration: 'short',
+        audioUrl: '',
+        lyrics: 'Lal ghaghra kamar lachkave... Fast energetic dance tempo with 808 sub-bass and traditional rhythmic percussions.',
+        timestamp: 'Bhojpuri Blast',
+        hasImage: false
+      }
+    ];
+
     const saved = localStorage.getItem('lyria_generated_tracks');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setTracks(parsed);
         if (parsed.length > 0) {
+          setTracks(parsed);
           setActiveTrack(parsed[0]);
+          return;
         }
       } catch (e) {
         console.error('Failed to load tracks:', e);
       }
     }
+    
+    setTracks(defaultInitialTracks);
+    setActiveTrack(defaultInitialTracks[0]);
   }, []);
 
   // Sync tracks to localStorage
@@ -95,11 +132,12 @@ export const MusicTab: React.FC = () => {
 
   // Handle Preset Selection
   const presets = [
-    { text: 'Cinematic orchestral fantasy journey', label: '🎻 Orchestral' },
-    { text: 'Chilled lo-fi hip hop beats for late night coding', label: '☕ Study Lo-Fi' },
-    { text: 'High energy 80s synthwave theme for racing', label: '🚗 Synthwave' },
-    { text: 'Ambient space drone with celestial modular synths', label: '🌌 Space Ambient' },
-    { text: 'Upbeat modern Bollywood dance party track', label: '💃 Bollywood' }
+    { text: 'High energy Bhojpuri party track with dholak and electronic bass', label: '💃 Bhojpuri Party' },
+    { text: 'Soulful Hindi romantic acoustic ballad with bansuri and piano', label: '🎸 Hindi Romantic' },
+    { text: 'Desi Bhojpuri dance beat in Khesari Lal and Pawan Singh style', label: '🔥 Bhojpuri Desi' },
+    { text: 'Chilled Hindi lo-fi beats with midnight acoustic vibes', label: '☕ Hindi Lo-Fi' },
+    { text: 'Upbeat modern Bollywood dance party track with dhol and synth', label: '✨ Bollywood' },
+    { text: 'Cinematic orchestral fantasy journey', label: '🎻 Orchestral' }
   ];
 
   // Handle Image Upload

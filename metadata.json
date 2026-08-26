@@ -1,6 +1,6 @@
 {
   "name": "SHIVANSH AI OS",
-  "description": "Professional desktop AI command center with 3D holographic energy core, voice control, system telemetry, desktop automation, app launcher, file assistant, and web browser control.",
+  "description": "Desktop AI voice assistant and command center featuring dual-screen browser automation, dedicated second-screen YouTube controller, voice playback pipelines, 3D holographic core, and system telemetry.",
   "requestFramePermissions": [
     "microphone",
     "camera",

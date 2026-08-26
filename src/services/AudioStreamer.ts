@@ -118,10 +118,27 @@ export class AudioStreamer {
 
       source.onended = () => {
         this.activeSources = this.activeSources.filter((s) => s !== source);
+        if (this.activeSources.length === 0 && this.onPlaybackStatusChange) {
+          this.onPlaybackStatusChange(false);
+        }
       };
+
+      if (this.onPlaybackStatusChange) {
+        this.onPlaybackStatusChange(true);
+      }
     } catch (e) {
       console.error('[AudioStreamer] Error playing chunk:', e);
     }
+  }
+
+  private onPlaybackStatusChange: ((isPlaying: boolean) => void) | null = null;
+
+  public setPlaybackStatusCallback(cb: (isPlaying: boolean) => void) {
+    this.onPlaybackStatusChange = cb;
+  }
+
+  public isCurrentlyPlaying(): boolean {
+    return this.activeSources.length > 0;
   }
 
   /**
@@ -346,6 +363,41 @@ export class AudioStreamer {
       osc.stop(now + 0.8);
     } catch (e) {
       console.warn('[AudioStreamer] Could not play shutdown chime:', e);
+    }
+  }
+
+  /**
+   * Plays a crisp, short wake chime when activated (e.g. on Clap or Wake word)
+   */
+  public playListeningChime() {
+    try {
+      this.initPlayer();
+      if (!this.outputCtx) return;
+      const now = this.outputCtx.currentTime;
+
+      const osc = this.outputCtx.createOscillator();
+      const gainNode = this.outputCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.12); // A5
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(this.isMuted ? 0 : this.currentVolume * 0.18, now + 0.03);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc.connect(gainNode);
+
+      if (this.volumeNode) {
+        gainNode.connect(this.volumeNode);
+      } else {
+        gainNode.connect(this.outputCtx.destination);
+      }
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch (e) {
+      console.warn('[AudioStreamer] Could not play listening chime:', e);
     }
   }
 }

@@ -1,16 +1,29 @@
 import React, { useState } from 'react';
-import { Volume2, Mic, Bot, Shield, Sliders, Check, Sparkles, Moon, Lock, Cpu, UserCheck, RotateCcw, Star, Heart, Smile } from 'lucide-react';
+import { 
+  Volume2, Mic, Bot, Shield, Sliders, Check, Sparkles, Moon, Lock, Cpu, 
+  UserCheck, RotateCcw, Star, Heart, Smile, Zap, Radio, BellRing, Sparkle, ShieldCheck, Play
+} from 'lucide-react';
 import { VoiceType } from '../types';
+import { ClapSensitivity, ClapMode, clapDetector } from '../services/ClapDetector';
+import audioStreamer from '../services/AudioStreamer';
 
 interface SettingsDashboardProps {
   voice: VoiceType;
   volume: number;
   speakingRate: number;
   assistantName?: string;
+  clapEnabled?: boolean;
+  clapMode?: ClapMode;
+  clapSensitivity?: ClapSensitivity;
+  backgroundModeEnabled?: boolean;
   onChangeVoice: (v: VoiceType) => void;
   onChangeVolume: (vol: number) => void;
   onChangeRate: (rate: number) => void;
   onChangeAssistantName?: (name: string) => void;
+  onToggleClap?: (enabled?: boolean) => void;
+  onChangeClapMode?: (mode: ClapMode) => void;
+  onChangeClapSensitivity?: (sens: ClapSensitivity) => void;
+  onToggleBackgroundMode?: (enabled?: boolean) => void;
 }
 
 export interface PersonaProfile {
@@ -35,18 +48,33 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   volume,
   speakingRate,
   assistantName,
+  clapEnabled = true,
+  clapMode = 'single',
+  clapSensitivity = 'medium',
+  backgroundModeEnabled = true,
   onChangeVoice,
   onChangeVolume,
   onChangeRate,
-  onChangeAssistantName
+  onChangeAssistantName,
+  onToggleClap,
+  onChangeClapMode,
+  onChangeClapSensitivity,
+  onToggleBackgroundMode
 }) => {
-  const [activeTab, setActiveTab] = useState<'persona' | 'voice' | 'ai' | 'system' | 'security'>('persona');
+  const [activeTab, setActiveTab] = useState<'persona' | 'voice' | 'clap' | 'emotional' | 'ai' | 'security'>('persona');
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('shivansh');
   const [wakeWord, setWakeWord] = useState('Shivansh');
-  const [responseStyle, setResponseStyle] = useState('Respectful Executive');
+  const [responseStyle, setResponseStyle] = useState('Emotionally Attuned Companion');
   const [gentlenessLevel, setGentlenessLevel] = useState<number>(95);
-  const [addressStyle, setAddressStyle] = useState<string>("Executive (Sir / Ma'am)");
-  const [transparency, setTransparency] = useState(85);
+  const [addressStyle, setAddressStyle] = useState<string>("Respectful Companion (Sir / Ji)");
+  const [testClapSuccess, setTestClapSuccess] = useState<boolean>(false);
+
+  // Emotional mode options
+  const [emotionAwareness, setEmotionAwareness] = useState<boolean>(true);
+  const [hindiHinglishFillers, setHindiHinglishFillers] = useState<boolean>(true);
+  const [interruptibleBargeIn, setInterruptibleBargeIn] = useState<boolean>(true);
+
+  // Security permissions
   const [micPerm, setMicPerm] = useState(true);
   const [appPerm, setAppPerm] = useState(true);
   const [filePerm, setFilePerm] = useState(true);
@@ -55,22 +83,22 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     {
       id: 'shivansh',
       name: 'Shivansh',
-      title: 'Default Executive Assistant Persona',
+      title: 'Emotionally Aware AI Voice Companion & PC Controller',
       isDefault: true,
-      recommendedVoice: 'Puck',
-      traits: ['Professional', 'Gentle', 'Respectful'],
-      description: 'Polite, respectful, and highly disciplined AI companion. Addresses the user with utmost deference, gentle vocal modulation, and executive precision.',
-      samplePhrase: '"At your service, sir. All desktop parameters and system telemetries are running smoothly. How may I assist you today?"',
+      recommendedVoice: 'Zephyr',
+      traits: ['Empathetic', 'Respectful', 'Multilingual', 'Intelligent'],
+      description: 'Caring, emotionally attuned, human-like voice companion fluent in Hindi, Hinglish, and English with Windows PC control and instant Clap-to-Talk wake activation.',
+      samplePhrase: '"Achha... kya hua? Agar aap baat karna chahein to bata sakte hain. Main sun raha hoon, sir."',
       behaviorDetails: {
-        tone: 'Gentle Executive',
+        tone: 'Warm, Empathetic & Natural',
         respectfulness: 'Maximum High (100%)',
-        gentleness: 'Soft & Calming (95%)',
-        formality: 'Polite Professional'
+        gentleness: 'Soothing & Attuned (95%)',
+        formality: 'Natural Human Companion'
       }
     },
     {
       id: 'zoya',
-      name: 'Zoya Executive',
+      name: 'Zoya',
       title: 'Empathetic Companion Persona',
       recommendedVoice: 'Kore',
       traits: ['Warm', 'Encouraging', 'Conversational'],
@@ -99,18 +127,18 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       }
     },
     {
-      id: 'zephyr',
-      name: 'Zephyr Minimal',
-      title: 'Ultra-Compact Notification Persona',
-      recommendedVoice: 'Zephyr',
-      traits: ['Quiet', 'Minimalist', 'Efficient'],
-      description: 'Ultra-brief, quiet notification voice profile designed for minimal disturbance during deep focus work hours.',
-      samplePhrase: '"Task completed. Status nominal."',
+      id: 'puck',
+      name: 'Puck Classic',
+      title: 'British Accent Classic Assistant',
+      recommendedVoice: 'Puck',
+      traits: ['Sophisticated', 'Polite', 'Articulate'],
+      description: 'Polite, classic British inflection with refined vocabulary and attentive execution.',
+      samplePhrase: '"Right away, sir. I have executed the task to your exact specifications."',
       behaviorDetails: {
-        tone: 'Monotone Minimal',
-        respectfulness: 'Neutral (75%)',
-        gentleness: 'Neutral (70%)',
-        formality: 'Compact'
+        tone: 'Aristocratic Polite',
+        respectfulness: 'High (90%)',
+        gentleness: 'Polite (85%)',
+        formality: 'British Traditional'
       }
     }
   ];
@@ -135,16 +163,22 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     }
     setWakeWord('Shivansh');
     setGentlenessLevel(95);
-    setResponseStyle('Respectful Executive');
-    setAddressStyle("Executive (Sir / Ma'am)");
+    setResponseStyle('Emotionally Attuned Companion');
+    setAddressStyle("Respectful Companion (Sir / Ji)");
+  };
+
+  const handleTestClap = () => {
+    audioStreamer.playListeningChime();
+    setTestClapSuccess(true);
+    setTimeout(() => setTestClapSuccess(false), 2500);
   };
 
   const voices: { id: VoiceType; name: string; gender: string; style: string }[] = [
-    { id: 'Puck', name: 'SHIVANSH Classic Male', gender: 'Male', style: 'Sophisticated & British Accent' },
-    { id: 'Charon', name: 'SHIVANSH Deep Male', gender: 'Male', style: 'Commanding & Deep Resonance' },
-    { id: 'Kore', name: 'Zoya AI Female', gender: 'Female', style: 'Warm & Professional Executive' },
-    { id: 'Fenrir', name: 'SHIVANSH Tactical Male', gender: 'Male', style: 'Crisp & Precise Engineering' },
-    { id: 'Zephyr', name: 'Zephyr Smooth Female', gender: 'Female', style: 'Clear & Minimalist Tone' },
+    { id: 'Zephyr', name: 'Zephyr Human-Like', gender: 'Smooth Neutral', style: 'Emotionally Expressive & Fluid' },
+    { id: 'Kore', name: 'Zoya AI Female', gender: 'Female', style: 'Warm, Empathetic & Natural' },
+    { id: 'Puck', name: 'Shivansh British Male', gender: 'Male', style: 'Sophisticated & Polite' },
+    { id: 'Charon', name: 'Shivansh Deep Male', gender: 'Male', style: 'Commanding & Deep Resonance' },
+    { id: 'Fenrir', name: 'Shivansh Tactical Male', gender: 'Male', style: 'Crisp & Precise Engineering' },
   ];
 
   return (
@@ -155,10 +189,10 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         <div>
           <h2 className="text-xl font-extrabold tracking-tight font-sans text-white flex items-center gap-2">
             <Sliders className="w-5 h-5 text-cyan-400 animate-pulse" />
-            SHIVANSH System Settings & Preferences
+            SHIVANSH AI Assistant Preferences
           </h2>
           <p className="text-xs font-mono text-slate-400 mt-1">
-            Configure AI persona behavior, voice profiles, model behavior, and security
+            Emotional Voice Companion • Clap-to-Talk Activation • Background Assistant
           </p>
         </div>
         <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold">
@@ -170,10 +204,11 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       <div className="flex items-center gap-2 border-b border-slate-900 pb-2 overflow-x-auto">
         {[
           { id: 'persona', label: 'Persona Profile', icon: UserCheck },
+          { id: 'clap', label: '👏 Clap-to-Talk & BG Mode', icon: Zap },
+          { id: 'emotional', label: '❤️ Emotional AI & Hindi', icon: Heart },
           { id: 'voice', label: 'Voice Settings', icon: Volume2 },
           { id: 'ai', label: 'AI Intelligence', icon: Bot },
-          { id: 'system', label: 'System & Theme', icon: Moon },
-          { id: 'security', label: 'Security & Access', icon: Lock },
+          { id: 'security', label: 'Security & Permissions', icon: Lock },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -200,8 +235,6 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         {/* PERSONA CONFIGURATION TAB */}
         {activeTab === 'persona' && (
           <div className="space-y-6">
-            
-            {/* Persona Switcher Cards */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-mono font-bold text-slate-300 uppercase block">
@@ -232,7 +265,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                       {p.isDefault && (
                         <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500 to-cyan-500 text-slate-950 text-[9px] font-mono font-black uppercase px-3 py-1 rounded-bl-xl shadow-md flex items-center gap-1">
                           <Star className="w-3 h-3 fill-slate-950" />
-                          DEFAULT PERSONA
+                          RECOMMENDED
                         </div>
                       )}
 
@@ -245,7 +278,6 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                         </div>
                         <p className="text-xs text-slate-400 font-mono mb-3">{p.title}</p>
 
-                        {/* Behavior Trait Tags */}
                         <div className="flex flex-wrap gap-1.5 mb-3">
                           {p.traits.map((trait) => (
                             <span
@@ -292,13 +324,12 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                   {currentPersona.isDefault && (
                     <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1">
                       <Check className="w-3 h-3" />
-                      DEFAULT PERSONA ACTIVE
+                      EMOTIONAL COMPANION ACTIVE
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Behavior Grid Specs */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
                   <span className="text-[10px] font-mono text-slate-400 uppercase block">Tone Style</span>
@@ -317,44 +348,156 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                   <span className="text-xs font-mono font-bold text-indigo-300">{currentPersona.behaviorDetails.formality}</span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
 
-              {/* Custom Sliders for Gentleness & Respectful Address */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <div className="flex justify-between text-xs font-mono mb-2">
-                    <span className="text-slate-300 font-bold">Gentleness & Softness Index</span>
-                    <span className="text-cyan-400 font-bold">{gentlenessLevel}%</span>
+        {/* CLAP-TO-TALK & BACKGROUND ASSISTANT TAB */}
+        {activeTab === 'clap' && (
+          <div className="space-y-6">
+            
+            {/* Clap-to-Talk Activation Card */}
+            <div className="p-5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 text-lg">
+                    👏
                   </div>
-                  <input
-                    type="range"
-                    min="50"
-                    max="100"
-                    step="1"
-                    value={gentlenessLevel}
-                    onChange={(e) => setGentlenessLevel(parseInt(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer"
-                  />
+                  <div>
+                    <h3 className="font-bold text-sm text-white font-sans">Clap-to-Talk Activation</h3>
+                    <p className="text-xs font-mono text-slate-400">Wake and talk to Shivansh AI instantly with hand claps</p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-mono font-bold text-slate-300 uppercase mb-2 block">
-                    Address Deference Style
-                  </label>
-                  <div className="flex gap-2">
-                    {["Executive (Sir / Ma'am)", "Polite Formal", "Friendly"].map((style) => (
-                      <button
-                        key={style}
-                        onClick={() => setAddressStyle(style)}
-                        className={`flex-1 py-1.5 px-2 rounded-xl border text-[10px] font-mono font-bold transition-all cursor-pointer ${
-                          addressStyle === style
-                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {style}
-                      </button>
-                    ))}
+                <button
+                  onClick={() => onToggleClap && onToggleClap(!clapEnabled)}
+                  className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                    clapEnabled
+                      ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                      : 'bg-slate-900 border border-slate-800 text-slate-500'
+                  }`}
+                >
+                  {clapEnabled ? 'ENABLED (ACTIVE)' : 'DISABLED'}
+                </button>
+              </div>
+
+              {/* Clap Trigger Mode (Single vs Double) */}
+              <div>
+                <label className="text-xs font-mono font-bold text-slate-300 uppercase mb-2 block">
+                  Clap Trigger Pattern
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => onChangeClapMode && onChangeClapMode('single')}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      clapMode === 'single'
+                        ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-sm text-white">👏 Single Clap</span>
+                      {clapMode === 'single' && <Check className="w-4 h-4 text-cyan-300" />}
+                    </div>
+                    <p className="text-[11px] font-mono text-slate-400">
+                      Wakes up immediately on one distinct hand clap (fastest wake response).
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={() => onChangeClapMode && onChangeClapMode('double')}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      clapMode === 'double'
+                        ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-sm text-white">👏👏 Double Clap</span>
+                      {clapMode === 'double' && <Check className="w-4 h-4 text-cyan-300" />}
+                    </div>
+                    <p className="text-[11px] font-mono text-slate-400">
+                      Requires two consecutive claps within 800ms (maximum noise immunity).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Clap Sensitivity */}
+              <div>
+                <label className="text-xs font-mono font-bold text-slate-300 uppercase mb-2 block">
+                  Acoustic Sensitivity Level
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['low', 'medium', 'high'] as ClapSensitivity[]).map((sens) => (
+                    <button
+                      key={sens}
+                      onClick={() => onChangeClapSensitivity && onChangeClapSensitivity(sens)}
+                      className={`py-2 px-3 rounded-xl border text-center font-mono text-xs font-bold uppercase transition-all cursor-pointer ${
+                        clapSensitivity === sens
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {sens}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 mt-2">
+                  {clapSensitivity === 'low' && 'Low: Requires firm, loud claps; ignores background household noise.'}
+                  {clapSensitivity === 'medium' && 'Medium (Recommended): Balanced sensitivity calibrated for standard desk environments.'}
+                  {clapSensitivity === 'high' && 'High: Sensitive trigger suitable for softer hand claps at a distance.'}
+                </p>
+              </div>
+
+              {/* Test Clap Button */}
+              <div className="pt-2 flex items-center justify-between border-t border-slate-900">
+                <span className="text-xs font-mono text-slate-400">
+                  {testClapSuccess ? '👏 Wake Chime Triggered!' : 'Test acoustic wake response chime:'}
+                </span>
+                <button
+                  onClick={handleTestClap}
+                  className="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 hover:bg-cyan-500/30 text-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Test Wake Chime</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Background Assistant Mode Card */}
+            <div className="p-5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
+                    <Radio className="w-5 h-5" />
                   </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white font-sans">Background Assistant Mode</h3>
+                    <p className="text-xs font-mono text-slate-400">Keep voice listener active when minimized or switching tabs</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onToggleBackgroundMode && onToggleBackgroundMode(!backgroundModeEnabled)}
+                  className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                    backgroundModeEnabled
+                      ? 'bg-indigo-500/20 border border-indigo-500/50 text-indigo-300'
+                      : 'bg-slate-900 border border-slate-800 text-slate-500'
+                  }`}
+                >
+                  {backgroundModeEnabled ? 'ACTIVE (STANDBY)' : 'DISABLED'}
+                </button>
+              </div>
+
+              <div className="text-xs font-mono text-slate-300 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Audio streams and Web Audio context persist seamlessly when window loses focus.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Wake phrases ("Shivansh", "Hey Shivansh") and Clap triggers wake the assistant in background.</span>
                 </div>
               </div>
             </div>
@@ -362,10 +505,93 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
           </div>
         )}
 
+        {/* EMOTIONAL AI & HINDI / HINGLISH TAB */}
+        {activeTab === 'emotional' && (
+          <div className="space-y-6">
+            <div className="p-5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-900 pb-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-300">
+                  <Heart className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white font-sans">Emotional AI Conversational Companion</h3>
+                  <p className="text-xs font-mono text-slate-400">Dynamic human-like empathy, vocal inflection & multilingual fluency</p>
+                </div>
+              </div>
+
+              {/* Emotion Modes List */}
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs text-white block">Conversational Emotion Detection</span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      Detects moods (Happy, Sad, Angry, Excited, Confused, Tired, Joking, Serious) & adjusts tone
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setEmotionAwareness(!emotionAwareness)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold ${
+                      emotionAwareness ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {emotionAwareness ? 'ENABLED' : 'DISABLED'}
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs text-white block">Hindi + Hinglish Conversational Fillers</span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      Uses natural expressions: "Hmm...", "Achha...", "Bilkul.", "Samajh gaya.", "Main sun raha hoon."
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setHindiHinglishFillers(!hindiHinglishFillers)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold ${
+                      hindiHinglishFillers ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {hindiHinglishFillers ? 'ENABLED' : 'DISABLED'}
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs text-white block">Interruptible Speech (Barge-In)</span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      Immediately halts AI voice synthesis when you begin speaking
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setInterruptibleBargeIn(!interruptibleBargeIn)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold ${
+                      interruptibleBargeIn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {interruptibleBargeIn ? 'ENABLED' : 'DISABLED'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Conversational Sample Dialog */}
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+                <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block font-bold">
+                  Hindi / Hinglish Empathy Example
+                </span>
+                <p className="text-xs text-slate-300 font-mono italic">
+                  <b>User:</b> "Aaj mera mood thoda kharab hai."
+                </p>
+                <p className="text-xs text-cyan-200 font-mono italic">
+                  <b>Shivansh:</b> "Achha... kya hua? Agar aap baat karna chahein to bata sakte hain. Main sun raha hoon, sir."
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* VOICE SETTINGS TAB */}
         {activeTab === 'voice' && (
           <div className="space-y-6">
-            {/* Voice Selection Cards */}
             <div>
               <label className="text-xs font-mono font-bold text-slate-300 uppercase mb-3 block">
                 Select SHIVANSH Voice Model
@@ -427,23 +653,10 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                 />
               </div>
             </div>
-
-            {/* Wake Word */}
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="font-bold text-sm text-white">Voice Wake Word Activation</h4>
-                <p className="text-xs font-mono text-slate-400 mt-0.5">Custom phrase to wake up assistant without clicking</p>
-              </div>
-              <input
-                type="text"
-                value={wakeWord}
-                onChange={(e) => setWakeWord(e.target.value)}
-                className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono text-xs outline-none"
-              />
-            </div>
           </div>
         )}
 
+        {/* AI INTELLIGENCE TAB */}
         {activeTab === 'ai' && (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
@@ -465,7 +678,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                   Response Tone & Personality Style
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {['Respectful Executive', 'Concise Technical', 'Friendly Conversational'].map((style) => (
+                  {['Emotionally Attuned Companion', 'Respectful Executive', 'Concise Technical', 'Friendly Conversational'].map((style) => (
                     <button
                       key={style}
                       onClick={() => setResponseStyle(style)}
@@ -484,32 +697,13 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
           </div>
         )}
 
-        {activeTab === 'system' && (
-          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4 font-mono text-xs">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-bold text-white block">Glassmorphism UI Opacity</span>
-                <span className="text-slate-400 text-[11px]">Adjust background panel transparency level</span>
-              </div>
-              <span className="font-bold text-cyan-300">{transparency}%</span>
-            </div>
-            <input
-              type="range"
-              min="40"
-              max="100"
-              value={transparency}
-              onChange={(e) => setTransparency(parseInt(e.target.value))}
-              className="w-full accent-cyan-400 cursor-pointer"
-            />
-          </div>
-        )}
-
+        {/* SECURITY & ACCESS TAB */}
         {activeTab === 'security' && (
           <div className="space-y-3 font-mono text-xs">
             {[
-              { label: 'Microphone Access Permission', state: micPerm, toggle: () => setMicPerm(!micPerm) },
-              { label: 'Desktop Application Launch Permission', state: appPerm, toggle: () => setAppPerm(!appPerm) },
-              { label: 'File System Search Permission', state: filePerm, toggle: () => setFilePerm(!filePerm) },
+              { label: 'Microphone Continuous Access Permission', state: micPerm, toggle: () => setMicPerm(!micPerm) },
+              { label: 'Desktop Application Launch & Automation', state: appPerm, toggle: () => setAppPerm(!appPerm) },
+              { label: 'File Search & PC Management Permission', state: filePerm, toggle: () => setFilePerm(!filePerm) },
             ].map((p) => (
               <div key={p.label} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
                 <span className="text-white font-bold">{p.label}</span>
@@ -525,6 +719,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
             ))}
           </div>
         )}
+
       </div>
 
     </div>

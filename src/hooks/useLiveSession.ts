@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, VoiceType } from '../types';
 import liveSession from '../services/LiveSession';
 import audioStreamer from '../services/AudioStreamer';
+import clapDetector, { ClapSensitivity, ClapMode } from '../services/ClapDetector';
 import { detectEmotion, UserEmotion } from '../utils/emotionDetector';
 
 // Mobile haptic vibration helper
@@ -14,7 +15,7 @@ const triggerHaptic = (pattern: number | number[] = 15) => {
 };
 
 export function useLiveSession() {
-  const [appState, setAppState] = useState<AppState>('disconnected');
+  const [appState, setAppState] = useState<AppState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<{ text: string; isUser: boolean } | null>(null);
   const [voice, setVoiceState] = useState<VoiceType>('Zephyr');
@@ -35,21 +36,91 @@ export function useLiveSession() {
     return 'Shivansh AI';
   });
 
+  // Clap-to-Talk and Background Assistant State
+  const [clapEnabled, setClapEnabledState] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('jarvis_clap_enabled');
+      return stored !== null ? stored === 'true' : true;
+    }
+    return true;
+  });
+  const [clapMode, setClapModeState] = useState<ClapMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('jarvis_clap_mode') as ClapMode) || 'single';
+    }
+    return 'single';
+  });
+  const [clapSensitivity, setClapSensitivityState] = useState<ClapSensitivity>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('jarvis_clap_sensitivity') as ClapSensitivity) || 'medium';
+    }
+    return 'medium';
+  });
+  const [backgroundModeEnabled, setBackgroundModeEnabledState] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('jarvis_bg_mode_enabled');
+      return stored !== null ? stored === 'true' : true;
+    }
+    return true;
+  });
+
+  const [clapNotice, setClapNotice] = useState<string | null>(null);
+
   // We use refs for callback state to avoid stale closures in events
   const transcriptRef = useRef<{ text: string; isUser: boolean } | null>(null);
+  const appStateRef = useRef<AppState>('idle');
+  appStateRef.current = appState;
 
+  // Sync clap detector parameters
   useEffect(() => {
-    // Register our React callbacks into the singleton liveSession
+    clapDetector.setEnabled(clapEnabled);
+    clapDetector.setMode(clapMode);
+    clapDetector.setSensitivity(clapSensitivity);
+  }, [clapEnabled, clapMode, clapSensitivity]);
+
+  // AudioStreamer playback status sync -> suppress clap detection while AI is speaking
+  useEffect(() => {
+    audioStreamer.setPlaybackStatusCallback((isPlaying) => {
+      clapDetector.setSpeaking(isPlaying);
+    });
+  }, []);
+
+  // Background Mode & Visibility change listener
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (backgroundModeEnabled) {
+          console.log('[BackgroundMode] App tab minimized/hidden. Keeping background voice service active.');
+        }
+      } else {
+        console.log('[BackgroundMode] App tab focused.');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [backgroundModeEnabled]);
+
+  // Main LiveSession and Clap callbacks registration
+  useEffect(() => {
+    // 1. Register LiveSession Callbacks
     liveSession.registerCallbacks(
       (state) => {
         setAppState(state);
         // Trigger soft haptic pulses on major state transitions
         if (state === 'listening') {
           triggerHaptic([10, 30, 10]);
+          clapDetector.setSpeaking(false);
         } else if (state === 'speaking') {
           triggerHaptic(8);
+          clapDetector.setSpeaking(true);
         } else if (state === 'error') {
           triggerHaptic([50, 50, 50]);
+          clapDetector.setSpeaking(false);
+        } else if (state === 'idle' || state === 'connected') {
+          clapDetector.setSpeaking(false);
         }
         
         // Clear error if successfully connected
@@ -68,7 +139,6 @@ export function useLiveSession() {
           setEmotion(detected);
         }
         
-        // Auto-clear transcript after a short period if not speaking/listening
         if (!isUser) {
           // Keep AI speech transcript on screen a bit longer, then clear
           setTimeout(() => {
@@ -90,6 +160,44 @@ export function useLiveSession() {
       }
     );
 
+    // 2. Register ClapDetector Callbacks
+    clapDetector.setCallbacks(
+      (modeDetected) => {
+        console.log(`[useLiveSession] 👏 Clap detected (${modeDetected})! Waking assistant...`);
+        triggerHaptic([40, 20, 40]);
+        setClapNotice(modeDetected === 'double' ? 'Double Clap Detected!' : 'Clap Detected!');
+        setAppState('clap_detected');
+
+        // Play wake chime
+        audioStreamer.playListeningChime();
+
+        setTimeout(() => {
+          setClapNotice(null);
+          // Connect or activate mic streaming
+          if (!liveSession.getIsConnected()) {
+            liveSession.connect();
+          } else {
+            liveSession.startMicStreaming();
+          }
+        }, 350);
+      },
+      (step) => {
+        if (step === 'first_clap') {
+          setClapNotice('First clap detected... clap again!');
+          triggerHaptic(15);
+        } else if (step === 'verified_clap') {
+          setClapNotice('Double clap verified!');
+        }
+      }
+    );
+
+    // Start background clap detector listening
+    if (clapEnabled) {
+      clapDetector.start().catch((err) => {
+        console.warn('[useLiveSession] Clap detector background start note:', err);
+      });
+    }
+
     // Initial sync
     liveSession.setVoice(voice);
     liveSession.setLanguage(language);
@@ -98,8 +206,8 @@ export function useLiveSession() {
     liveSession.setSpeakingRate(speakingRate);
 
     return () => {
-      // Cleanup on unmount
       liveSession.disconnect();
+      clapDetector.stop();
     };
   }, []);
 
@@ -114,6 +222,40 @@ export function useLiveSession() {
     triggerHaptic([20, 15, 20]);
     audioStreamer.playShutdownChime();
     liveSession.disconnect();
+  }, []);
+
+  const toggleClapEnabled = useCallback((enabled?: boolean) => {
+    setClapEnabledState((prev) => {
+      const nextVal = enabled !== undefined ? enabled : !prev;
+      localStorage.setItem('jarvis_clap_enabled', String(nextVal));
+      clapDetector.setEnabled(nextVal);
+      if (nextVal) {
+        clapDetector.start().catch(() => {});
+      } else {
+        clapDetector.stop();
+      }
+      return nextVal;
+    });
+  }, []);
+
+  const changeClapMode = useCallback((mode: ClapMode) => {
+    setClapModeState(mode);
+    localStorage.setItem('jarvis_clap_mode', mode);
+    clapDetector.setMode(mode);
+  }, []);
+
+  const changeClapSensitivity = useCallback((sens: ClapSensitivity) => {
+    setClapSensitivityState(sens);
+    localStorage.setItem('jarvis_clap_sensitivity', sens);
+    clapDetector.setSensitivity(sens);
+  }, []);
+
+  const toggleBackgroundMode = useCallback((enabled?: boolean) => {
+    setBackgroundModeEnabledState((prev) => {
+      const nextVal = enabled !== undefined ? enabled : !prev;
+      localStorage.setItem('jarvis_bg_mode_enabled', String(nextVal));
+      return nextVal;
+    });
   }, []);
 
   const changeAssistantName = useCallback((newName: string) => {
@@ -174,9 +316,18 @@ export function useLiveSession() {
     speakingRate,
     assistantName,
     emotion,
+    clapEnabled,
+    clapMode,
+    clapSensitivity,
+    clapNotice,
+    backgroundModeEnabled,
     isConnected,
     startSession,
     stopSession,
+    toggleClapEnabled,
+    changeClapMode,
+    changeClapSensitivity,
+    toggleBackgroundMode,
     changeVoice,
     changeLanguage,
     changeSensitivity,

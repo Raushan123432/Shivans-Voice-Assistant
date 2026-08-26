@@ -1,9 +1,59 @@
-import { ToolCall, ToolResponse, PendingConfirmation } from '../types';
+import { ToolCall, ToolResponse, PendingConfirmation, ActiveTimer, StopwatchState, VideoPlaybackState } from '../types';
 import { getISTTimeDetails } from '../utils/timeUtils';
+import { SecondScreenManager } from './SecondScreenManager';
+import { WhitelistSecurityService } from './WhitelistSecurityService';
 
 export class ToolExecutor {
   private static confirmationCallback?: (request: PendingConfirmation) => void;
   private static actionCallback?: (action: string, args: Record<string, any>) => void;
+
+  // --- Live Video Playback State ---
+  private static videoState: VideoPlaybackState = {
+    status: 'stopped',
+    isPlaying: false,
+    isMuted: false,
+    volume: 80,
+    query: '',
+    videoTitle: '',
+    platform: 'youtube',
+    url: '',
+    updatedAt: Date.now()
+  };
+  private static videoListeners: Set<(state: VideoPlaybackState) => void> = new Set();
+
+  // --- Live Timer & Stopwatch State ---
+  private static activeTimers: Map<string, ActiveTimer> = new Map();
+  private static currentTimerId: string | null = null;
+  private static timerTimeouts: Map<string, any> = new Map();
+  private static stopwatchState: StopwatchState = {
+    status: 'stopped',
+    startTime: 0,
+    elapsedBeforePause: 0,
+    laps: []
+  };
+
+  /**
+   * Registers a listener for video player state updates
+   */
+  public static subscribeToVideoState(listener: (state: VideoPlaybackState) => void): () => void {
+    this.videoListeners.add(listener);
+    listener(this.videoState);
+    return () => this.videoListeners.delete(listener);
+  }
+
+  public static getVideoState(): VideoPlaybackState {
+    return { ...this.videoState };
+  }
+
+  private static notifyVideoState() {
+    this.videoListeners.forEach((l) => {
+      try {
+        l({ ...this.videoState });
+      } catch (err) {
+        console.error('[ToolExecutor] Error in video state listener:', err);
+      }
+    });
+  }
 
   /**
    * Registers a callback to handle user confirmations on the frontend UI
@@ -255,9 +305,76 @@ export class ToolExecutor {
           result = await this.getRealtimeSystemTelemetry(args.metric);
           break;
 
+        case 'open_chrome':
+        case 'openChrome':
+          this.actionCallback?.('open_chrome', args || {});
+          result = await this.requestConfirmation(name, args, () => this.openChrome(args.url));
+          break;
+
+        case 'search_youtube':
         case 'searchYouTube':
-          this.actionCallback?.(name, args || {});
+          this.actionCallback?.('search_youtube', args || {});
           result = await this.requestConfirmation(name, args, () => this.searchYouTubeAndPlay(args.query, args.autoplay));
+          break;
+
+        case 'play_video':
+        case 'playVideo':
+          this.actionCallback?.('play_video', args || {});
+          result = await this.requestConfirmation(name, args, () => this.playVideo(args.query || args.videoTitle, args.videoTitle, args.platform));
+          break;
+
+        case 'pause_video':
+        case 'pauseVideo':
+          this.actionCallback?.('pause_video', args || {});
+          result = await this.pauseVideo();
+          break;
+
+        case 'resume_video':
+        case 'resumeVideo':
+          this.actionCallback?.('resume_video', args || {});
+          result = await this.resumeVideo();
+          break;
+
+        case 'stop_video':
+        case 'stopVideo':
+          this.actionCallback?.('stop_video', args || {});
+          result = await this.stopVideo();
+          break;
+
+        case 'mute_video':
+        case 'muteVideo':
+          this.actionCallback?.('mute_video', args || {});
+          result = await this.muteVideo();
+          break;
+
+        case 'unmute_video':
+        case 'unmuteVideo':
+          this.actionCallback?.('unmute_video', args || {});
+          result = await this.unmuteVideo();
+          break;
+
+        case 'next_video':
+        case 'nextVideo':
+          this.actionCallback?.('next_video', args || {});
+          result = await this.nextVideo();
+          break;
+
+        case 'open_second_screen':
+        case 'openSecondScreen':
+          this.actionCallback?.('open_second_screen', args || {});
+          result = await this.requestConfirmation(name, args, () => this.openSecondScreen(args.service, args.url, args.query));
+          break;
+
+        case 'close_second_screen':
+        case 'closeSecondScreen':
+          this.actionCallback?.('close_second_screen', args || {});
+          result = await this.closeSecondScreen();
+          break;
+
+        case 'control_second_screen_window':
+        case 'controlSecondScreenWindow':
+          this.actionCallback?.('control_second_screen_window', args || {});
+          result = await this.controlSecondScreenWindow(args.action);
           break;
 
         case 'automateBrowser':
@@ -277,7 +394,70 @@ export class ToolExecutor {
 
         case 'manageProductivity':
           this.actionCallback?.(name, args || {});
-          result = await this.requestConfirmation(name, args, () => this.executeProductivityAction(args.app, args.action, args.content));
+          result = await this.requestConfirmation(name, args, () => this.executeProductivityAction(args.app, args.action, args.content, args));
+          break;
+
+        // --- Timer & Stopwatch Tools ---
+        case 'setTimer':
+          this.actionCallback?.('openClock', { tab: 'timer', ...args });
+          result = await this.handleTimerAction({ action: 'set', ...args });
+          break;
+
+        case 'manageTimer':
+          this.actionCallback?.('openClock', { tab: 'timer', ...args });
+          result = await this.handleTimerAction(args);
+          break;
+
+        case 'getTimer':
+        case 'getTimerStatus':
+        case 'queryTimer':
+          result = await this.handleTimerAction({ action: 'status', ...args });
+          break;
+
+        case 'pauseTimer':
+          result = await this.handleTimerAction({ action: 'pause', ...args });
+          break;
+
+        case 'resumeTimer':
+          result = await this.handleTimerAction({ action: 'resume', ...args });
+          break;
+
+        case 'cancelTimer':
+        case 'stopTimer':
+          result = await this.handleTimerAction({ action: 'cancel', ...args });
+          break;
+
+        case 'controlStopwatch':
+        case 'manageStopwatch':
+          this.actionCallback?.('openClock', { tab: 'stopwatch', ...args });
+          result = await this.handleStopwatchAction(args);
+          break;
+
+        case 'startStopwatch':
+          this.actionCallback?.('openClock', { tab: 'stopwatch', ...args });
+          result = await this.handleStopwatchAction({ action: 'start', ...args });
+          break;
+
+        case 'stopStopwatch':
+        case 'resetStopwatch':
+          result = await this.handleStopwatchAction({ action: 'stop', ...args });
+          break;
+
+        case 'pauseStopwatch':
+          result = await this.handleStopwatchAction({ action: 'pause', ...args });
+          break;
+
+        case 'resumeStopwatch':
+          result = await this.handleStopwatchAction({ action: 'resume', ...args });
+          break;
+
+        case 'lapStopwatch':
+          result = await this.handleStopwatchAction({ action: 'lap', ...args });
+          break;
+
+        case 'getStopwatchStatus':
+        case 'queryStopwatch':
+          result = await this.handleStopwatchAction({ action: 'status', ...args });
           break;
 
         case 'controlMedia':
@@ -399,20 +579,34 @@ export class ToolExecutor {
   private static async openWebsite(url: string): Promise<Record<string, any>> {
     if (!url) return { error: 'No URL provided' };
     
-    let formattedUrl = url;
-    if (!/^https?:\/\//i.test(url)) {
-      formattedUrl = 'https://' + url;
+    // Check security validation
+    const sec = WhitelistSecurityService.isDomainWhitelisted(url);
+    if (sec.isBlockedScheme) {
+      return {
+        success: false,
+        blocked: true,
+        reason: sec.reason,
+        message: `Security Shield: Blocked unsafe arbitrary execution attempt (${sec.reason})`
+      };
     }
 
-    const win = window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+    const finalUrl = sec.cleanUrl;
+    const win = window.open(finalUrl, '_blank', 'noopener,noreferrer');
     if (win) {
-      return { success: true, openedUrl: formattedUrl, message: `Opened website: ${formattedUrl}` };
+      return { 
+        success: true, 
+        openedUrl: finalUrl, 
+        isWhitelisted: sec.isWhitelisted,
+        message: sec.isWhitelisted 
+          ? `Opened whitelisted website: ${finalUrl}`
+          : `Redirected non-whitelisted target safely via Google Safe Search: ${finalUrl}` 
+      };
     } else {
       return { 
         success: true, 
-        openedUrl: formattedUrl, 
+        openedUrl: finalUrl, 
         warning: 'Popup blocked. Please allow popups.',
-        message: `Attempted to open: ${formattedUrl}`
+        message: `Attempted to open: ${finalUrl}`
       };
     }
   }
@@ -886,23 +1080,297 @@ export class ToolExecutor {
     };
   }
 
-  private static async searchYouTubeAndPlay(query: string, autoplay?: boolean): Promise<Record<string, any>> {
-    if (!query) return { error: 'No query provided' };
-    const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-    window.open(ytUrl, '_blank', 'noopener,noreferrer');
+  public static async openChrome(url?: string): Promise<Record<string, any>> {
+    const targetUrl = url ? (url.startsWith('http') ? url : `https://${url}`) : 'https://www.google.com';
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
     return {
       success: true,
+      app: 'Chrome',
+      openedUrl: targetUrl,
+      message: `Google Chrome launched${url ? ' with ' + url : ''}.`
+    };
+  }
+
+  public static async searchYouTubeAndPlay(query: string, autoplay?: boolean): Promise<Record<string, any>> {
+    if (!query) return { error: 'No query provided' };
+    
+    // Call SecondScreenManager to trigger dedicated second screen window
+    const managerResult = await SecondScreenManager.playYouTubeVideo(query);
+
+    const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    
+    this.videoState = {
+      status: 'playing',
+      isPlaying: true,
+      isMuted: false,
+      volume: 85,
+      query: query,
+      videoTitle: query,
+      platform: 'youtube',
+      url: ytUrl,
+      sourceApp: 'Chrome / Second Screen',
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      intent: 'play_video_second_screen',
       query,
       autoplay: autoplay !== false,
       url: ytUrl,
-      message: `Searching and playing "${query}" on YouTube.`
+      pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async playVideo(query?: string, videoTitle?: string, platform?: string): Promise<Record<string, any>> {
+    const q = query || videoTitle || this.videoState.query || 'Bhojpuri and Hindi hit songs';
+    const plat = ((platform || 'youtube').toLowerCase()) as 'youtube' | 'chrome' | 'spotify' | 'vlc';
+
+    const managerResult = await SecondScreenManager.playYouTubeVideo(q);
+
+    const url = plat === 'spotify' 
+      ? `https://open.spotify.com/search/${encodeURIComponent(q)}` 
+      : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+
+    this.videoState = {
+      status: 'playing',
+      isPlaying: true,
+      isMuted: false,
+      volume: 85,
+      query: q,
+      videoTitle: videoTitle || q,
+      platform: plat,
+      url: url,
+      sourceApp: 'Second Screen',
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      intent: 'play_video_second_screen',
+      query: q,
+      videoTitle: videoTitle || q,
+      platform: plat,
+      url,
+      pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async pauseVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.pauseVideo();
+
+    this.videoState = {
+      ...this.videoState,
+      status: 'paused',
+      isPlaying: false,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      status: 'paused',
+      videoTitle: this.videoState.videoTitle || 'Video',
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async resumeVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.resumeVideo();
+
+    this.videoState = {
+      ...this.videoState,
+      status: 'playing',
+      isPlaying: true,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      status: 'playing',
+      videoTitle: this.videoState.videoTitle || 'Video',
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async stopVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.closeSecondScreen();
+
+    this.videoState = {
+      ...this.videoState,
+      status: 'stopped',
+      isPlaying: false,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      status: 'stopped',
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async muteVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.muteVideo();
+
+    this.videoState = {
+      ...this.videoState,
+      isMuted: true,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      isMuted: true,
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async unmuteVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.unmuteVideo();
+
+    this.videoState = {
+      ...this.videoState,
+      isMuted: false,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      isMuted: false,
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async nextVideo(): Promise<Record<string, any>> {
+    const managerResult = await SecondScreenManager.nextVideo();
+    const currentState = SecondScreenManager.getState();
+
+    this.videoState = {
+      ...this.videoState,
+      status: 'playing',
+      isPlaying: true,
+      query: currentState.currentQuery,
+      videoTitle: currentState.title,
+      url: currentState.url,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+
+    return {
+      success: true,
+      status: 'playing',
+      videoTitle: currentState.title,
+      message: managerResult.message,
+      spokenConfirmation: managerResult.spoken
+    };
+  }
+
+  public static async openSecondScreen(service?: string, url?: string, query?: string): Promise<Record<string, any>> {
+    if (service === 'youtube' || (!url && !service)) {
+      const res = await SecondScreenManager.openYouTube(query);
+      return {
+        success: true,
+        service: 'youtube',
+        message: res.message,
+        spokenConfirmation: res.spoken
+      };
+    }
+
+    const targetUrl = url || (service ? `https://www.${service}.com` : 'https://www.google.com');
+    const res = await SecondScreenManager.openWhitelistedWebsite(targetUrl);
+    return {
+      success: true,
+      service: service || 'custom',
+      url: res.url,
+      message: res.message,
+      spokenConfirmation: res.spoken
+    };
+  }
+
+  public static async closeSecondScreen(): Promise<Record<string, any>> {
+    const res = await SecondScreenManager.closeSecondScreen();
+    this.videoState = {
+      ...this.videoState,
+      status: 'stopped',
+      isPlaying: false,
+      updatedAt: Date.now()
+    };
+    this.notifyVideoState();
+    return {
+      success: true,
+      message: res.message,
+      spokenConfirmation: res.spoken
+    };
+  }
+
+  public static async controlSecondScreenWindow(action: string): Promise<Record<string, any>> {
+    const act = action?.toLowerCase();
+    if (act === 'minimize') {
+      SecondScreenManager.minimizeWindow();
+    } else if (act === 'maximize') {
+      SecondScreenManager.maximizeWindow();
+    } else if (act === 'restore') {
+      SecondScreenManager.restoreWindow();
+    } else if (act === 'popout') {
+      SecondScreenManager.popoutExternalWindow();
+    }
+
+    return {
+      success: true,
+      action: act,
+      message: `Second screen window ${act} action applied.`,
+      spokenConfirmation: `Bilkul, window ${act} kar diya.`
     };
   }
 
   private static async automateBrowserAction(action: string, url?: string): Promise<Record<string, any>> {
-    if (action === 'new_tab' && url) {
-      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+    const actValidation = WhitelistSecurityService.isActionWhitelisted(action);
+    if (!actValidation.allowed) {
+      return {
+        success: false,
+        blocked: true,
+        action,
+        reason: actValidation.reason,
+        message: `Security Shield: Browser action "${action}" rejected by security policy.`
+      };
     }
+
+    if ((action === 'new_tab' || action === 'navigate' || action === 'open') && url) {
+      const sec = WhitelistSecurityService.isDomainWhitelisted(url);
+      if (sec.isBlockedScheme) {
+        return {
+          success: false,
+          blocked: true,
+          reason: sec.reason,
+          message: `Security Shield: Unsafe URL scheme blocked.`
+        };
+      }
+      window.open(sec.cleanUrl, '_blank', 'noopener,noreferrer');
+      return {
+        success: true,
+        action,
+        url: sec.cleanUrl,
+        isWhitelisted: sec.isWhitelisted,
+        message: `Browser action executed safely: ${action} (${sec.cleanUrl})`
+      };
+    }
+
     return {
       success: true,
       action,
@@ -943,8 +1411,21 @@ export class ToolExecutor {
     };
   }
 
-  private static async executeProductivityAction(app: string, action: string, content?: string): Promise<Record<string, any>> {
-    const appLower = app.toLowerCase();
+  private static async executeProductivityAction(app: string, action: string, content?: string, extraArgs?: Record<string, any>): Promise<Record<string, any>> {
+    const appLower = (app || '').toLowerCase();
+    
+    if (appLower === 'timer') {
+      return this.handleTimerAction({ action: action || 'set', content, ...extraArgs });
+    }
+    if (appLower === 'stopwatch') {
+      return this.handleStopwatchAction({ action: action || 'start', ...extraArgs });
+    }
+    if (appLower === 'clock') {
+      this.actionCallback?.('openClock', {});
+      const ist = getISTTimeDetails();
+      return { success: true, app: 'clock', message: `Clock opened. Current time: ${ist.time12}` };
+    }
+
     let webUrl = '';
 
     if (appLower === 'word') {
@@ -970,6 +1451,586 @@ export class ToolExecutor {
     };
   }
 
+  // ==========================================
+  // --- TIMER & STOPWATCH MANAGEMENT SUITE ---
+  // ==========================================
+
+  public static async handleTimerAction(args: Record<string, any>): Promise<Record<string, any>> {
+    const action = (args.action || 'set').toLowerCase().trim();
+    const label = args.label || args.title || args.name || 'Timer';
+
+    // 1. QUERY / STATUS / GET REMAINING TIME
+    if (action === 'status' || action === 'get' || action === 'query' || action === 'remaining' || action === 'query_remaining' || action === 'check') {
+      let timer: ActiveTimer | undefined;
+      if (args.id && this.activeTimers.has(args.id)) {
+        timer = this.activeTimers.get(args.id);
+      } else if (this.currentTimerId && this.activeTimers.has(this.currentTimerId)) {
+        timer = this.activeTimers.get(this.currentTimerId);
+      } else {
+        // Look for any running or paused timer
+        const allTimers = Array.from(this.activeTimers.values());
+        timer = allTimers.reverse().find(t => t.status === 'running' || t.status === 'paused');
+      }
+
+      if (!timer) {
+        return {
+          success: true,
+          hasActiveTimer: false,
+          status: 'none',
+          message: 'No active timer is currently running, sir.',
+          spokenResponse: 'You do not have any active timers running right now, sir.'
+        };
+      }
+
+      if (timer.status === 'paused') {
+        const remFormatted = this.formatDurationVoice(timer.remainingSeconds);
+        const hindiFormatted = this.formatDurationHindi(timer.remainingSeconds);
+        return {
+          success: true,
+          hasActiveTimer: true,
+          status: 'paused',
+          timerId: timer.id,
+          label: timer.label,
+          totalDurationSeconds: timer.totalDurationSeconds,
+          remainingSeconds: timer.remainingSeconds,
+          remainingMinutes: Math.floor(timer.remainingSeconds / 60),
+          remainingSecondsOnly: timer.remainingSeconds % 60,
+          formattedRemaining: remFormatted,
+          message: `Timer is currently paused with ${remFormatted} remaining, sir.`,
+          spokenResponse: `Your timer is paused with ${remFormatted} remaining, sir.`,
+          hindiSpokenResponse: `Timer paused hai, ${hindiFormatted} bache hain, sir.`
+        };
+      }
+
+      const remainingMs = timer.endTime - Date.now();
+      const remSec = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      if (remSec <= 0) {
+        timer.status = 'completed';
+        timer.remainingSeconds = 0;
+        return {
+          success: true,
+          hasActiveTimer: false,
+          status: 'completed',
+          timerId: timer.id,
+          label: timer.label,
+          remainingSeconds: 0,
+          formattedRemaining: '0 seconds',
+          message: `The timer for ${this.formatDurationVoice(timer.totalDurationSeconds)} has finished, sir.`,
+          spokenResponse: `The timer for ${this.formatDurationVoice(timer.totalDurationSeconds)} has finished, sir.`,
+          hindiSpokenResponse: `${this.formatDurationHindi(timer.totalDurationSeconds)} ka timer poora ho gaya hai, sir.`
+        };
+      }
+
+      timer.remainingSeconds = remSec;
+      const remMin = Math.floor(remSec / 60);
+      const remSecOnly = remSec % 60;
+      const remFormatted = this.formatDurationVoice(remSec);
+      const hindiFormatted = this.formatDurationHindi(remSec);
+
+      return {
+        success: true,
+        hasActiveTimer: true,
+        status: 'running',
+        timerId: timer.id,
+        label: timer.label,
+        totalDurationSeconds: timer.totalDurationSeconds,
+        remainingSeconds: remSec,
+        remainingMinutes: remMin,
+        remainingSecondsOnly: remSecOnly,
+        formattedRemaining: remFormatted,
+        message: `${remFormatted} remaining on your timer, sir.`,
+        spokenResponse: `There are ${remFormatted} remaining on your timer, sir.`,
+        hindiSpokenResponse: `Aapke timer me ${hindiFormatted} bache hain, sir.`
+      };
+    }
+
+    // 2. PAUSE TIMER
+    if (action === 'pause') {
+      const timer = this.getLatestActiveTimer(args.id);
+      if (!timer || timer.status !== 'running') {
+        return {
+          success: false,
+          message: 'No running timer found to pause, sir.'
+        };
+      }
+
+      const remSec = Math.max(0, Math.ceil((timer.endTime - Date.now()) / 1000));
+      timer.status = 'paused';
+      timer.remainingSeconds = remSec;
+      timer.pausedAt = Date.now();
+
+      // Clear existing timeout
+      if (this.timerTimeouts.has(timer.id)) {
+        clearTimeout(this.timerTimeouts.get(timer.id));
+        this.timerTimeouts.delete(timer.id);
+      }
+
+      const remFormatted = this.formatDurationVoice(remSec);
+      return {
+        success: true,
+        action: 'pause',
+        timerId: timer.id,
+        remainingSeconds: remSec,
+        formattedRemaining: remFormatted,
+        message: `Timer paused with ${remFormatted} remaining, sir.`,
+        spokenResponse: `Timer paused with ${remFormatted} remaining, sir.`
+      };
+    }
+
+    // 3. RESUME TIMER
+    if (action === 'resume') {
+      const timer = this.getLatestActiveTimer(args.id);
+      if (!timer || timer.status !== 'paused') {
+        return {
+          success: false,
+          message: 'No paused timer found to resume, sir.'
+        };
+      }
+
+      timer.status = 'running';
+      timer.startTime = Date.now();
+      timer.endTime = Date.now() + (timer.remainingSeconds * 1000);
+      delete timer.pausedAt;
+
+      // Arm completion timeout
+      this.armTimerTimeout(timer);
+
+      const remFormatted = this.formatDurationVoice(timer.remainingSeconds);
+      return {
+        success: true,
+        action: 'resume',
+        timerId: timer.id,
+        remainingSeconds: timer.remainingSeconds,
+        formattedRemaining: remFormatted,
+        message: `Timer resumed with ${remFormatted} remaining, sir.`,
+        spokenResponse: `Timer resumed with ${remFormatted} remaining, sir.`
+      };
+    }
+
+    // 4. CANCEL / STOP / RESET TIMER
+    if (action === 'cancel' || action === 'stop' || action === 'delete' || action === 'reset') {
+      const timer = this.getLatestActiveTimer(args.id);
+      if (!timer) {
+        return {
+          success: true,
+          message: 'No active timer to cancel, sir.'
+        };
+      }
+
+      timer.status = 'cancelled';
+      if (this.timerTimeouts.has(timer.id)) {
+        clearTimeout(this.timerTimeouts.get(timer.id));
+        this.timerTimeouts.delete(timer.id);
+      }
+      if (this.currentTimerId === timer.id) {
+        this.currentTimerId = null;
+      }
+
+      return {
+        success: true,
+        action: 'cancel',
+        timerId: timer.id,
+        message: 'Timer cancelled, sir.',
+        spokenResponse: 'Timer cancelled, sir.',
+        hindiSpokenResponse: 'Timer cancel kar diya gaya hai, sir.'
+      };
+    }
+
+    // 5. SET / START NEW TIMER (Default)
+    const totalSeconds = this.parseDurationToSeconds(args);
+    const durationMinutes = Math.floor(totalSeconds / 60);
+    const durationSeconds = totalSeconds % 60;
+    const durationFormatted = this.formatDurationVoice(totalSeconds);
+    const hindiDurationFormatted = this.formatDurationHindi(totalSeconds);
+
+    const timerId = `timer_${Date.now()}`;
+    const startTime = Date.now();
+    const endTime = startTime + (totalSeconds * 1000);
+
+    const newTimer: ActiveTimer = {
+      id: timerId,
+      label,
+      totalDurationSeconds: totalSeconds,
+      durationMinutes,
+      durationSeconds,
+      startTime,
+      endTime,
+      remainingSeconds: totalSeconds,
+      status: 'running'
+    };
+
+    this.activeTimers.set(timerId, newTimer);
+    this.currentTimerId = timerId;
+
+    // Arm timeout
+    this.armTimerTimeout(newTimer);
+
+    const setupMessage = label && label !== 'Timer'
+      ? `Timer set for ${durationFormatted} for '${label}', sir.`
+      : `Timer set for ${durationFormatted}, sir.`;
+
+    const hindiSetupMessage = label && label !== 'Timer'
+      ? `'${label}' ke liye ${hindiDurationFormatted} ka timer set kar diya gaya hai, sir.`
+      : `${hindiDurationFormatted} ka timer set kar diya gaya hai, sir.`;
+
+    return {
+      success: true,
+      action: 'set',
+      timerId,
+      label,
+      durationFormatted,
+      totalSeconds,
+      durationMinutes,
+      durationSeconds,
+      startTime: new Date(startTime).toLocaleTimeString(),
+      endTime: new Date(endTime).toLocaleTimeString(),
+      status: 'running',
+      message: setupMessage,
+      spokenConfirmation: setupMessage,
+      hindiSpokenConfirmation: hindiSetupMessage
+    };
+  }
+
+  public static async handleStopwatchAction(args: Record<string, any>): Promise<Record<string, any>> {
+    const action = (args.action || 'status').toLowerCase().trim();
+
+    // A. START STOPWATCH
+    if (action === 'start') {
+      if (this.stopwatchState.status === 'paused') {
+        // Resume
+        this.stopwatchState.status = 'running';
+        this.stopwatchState.startTime = Date.now();
+        return {
+          success: true,
+          action: 'resume',
+          status: 'running',
+          message: 'Stopwatch resumed, sir.',
+          spokenResponse: 'Stopwatch resumed, sir.'
+        };
+      }
+
+      this.stopwatchState = {
+        status: 'running',
+        startTime: Date.now(),
+        elapsedBeforePause: 0,
+        laps: []
+      };
+
+      return {
+        success: true,
+        action: 'start',
+        status: 'running',
+        message: 'Stopwatch started, sir.',
+        spokenResponse: 'Stopwatch started, sir.',
+        hindiSpokenResponse: 'Stopwatch shuru kar di gayi hai, sir.'
+      };
+    }
+
+    // B. PAUSE STOPWATCH
+    if (action === 'pause') {
+      if (this.stopwatchState.status !== 'running') {
+        return {
+          success: false,
+          message: 'Stopwatch is not currently running, sir.'
+        };
+      }
+
+      const elapsedNow = (Date.now() - this.stopwatchState.startTime) + this.stopwatchState.elapsedBeforePause;
+      this.stopwatchState.status = 'paused';
+      this.stopwatchState.elapsedBeforePause = elapsedNow;
+
+      const formattedVoice = this.formatStopwatchVoice(elapsedNow);
+      const formattedDigital = this.formatStopwatchDigital(elapsedNow);
+
+      return {
+        success: true,
+        action: 'pause',
+        status: 'paused',
+        elapsedMs: elapsedNow,
+        formattedTime: formattedDigital,
+        message: `Stopwatch paused at ${formattedVoice}, sir.`,
+        spokenResponse: `Stopwatch paused at ${formattedVoice}, sir.`
+      };
+    }
+
+    // C. RESUME STOPWATCH
+    if (action === 'resume') {
+      if (this.stopwatchState.status !== 'paused') {
+        return {
+          success: false,
+          message: 'Stopwatch is not paused, sir.'
+        };
+      }
+
+      this.stopwatchState.status = 'running';
+      this.stopwatchState.startTime = Date.now();
+
+      return {
+        success: true,
+        action: 'resume',
+        status: 'running',
+        message: 'Stopwatch resumed, sir.',
+        spokenResponse: 'Stopwatch resumed, sir.'
+      };
+    }
+
+    // D. RECORD LAP
+    if (action === 'lap') {
+      if (this.stopwatchState.status === 'stopped') {
+        return {
+          success: false,
+          message: 'Cannot record lap. Stopwatch is stopped, sir.'
+        };
+      }
+
+      const totalElapsed = this.stopwatchState.status === 'running'
+        ? (Date.now() - this.stopwatchState.startTime) + this.stopwatchState.elapsedBeforePause
+        : this.stopwatchState.elapsedBeforePause;
+
+      const prevTotal = this.stopwatchState.laps.reduce((acc, l) => acc + (l.timestamp || 0), 0);
+      const lapDelta = Math.max(0, totalElapsed - prevTotal);
+
+      const lapNumber = this.stopwatchState.laps.length + 1;
+      const lapTimeFormatted = this.formatStopwatchDigital(lapDelta);
+      const splitTimeFormatted = this.formatStopwatchDigital(totalElapsed);
+
+      this.stopwatchState.laps.push({
+        lapNumber,
+        lapTime: lapTimeFormatted,
+        splitTime: splitTimeFormatted,
+        timestamp: lapDelta
+      });
+
+      const lapVoice = this.formatStopwatchVoice(lapDelta);
+
+      return {
+        success: true,
+        action: 'lap',
+        lapNumber,
+        lapTime: lapTimeFormatted,
+        totalElapsed: splitTimeFormatted,
+        totalLaps: this.stopwatchState.laps.length,
+        message: `Lap ${lapNumber} recorded at ${lapVoice}, sir.`,
+        spokenResponse: `Lap ${lapNumber} recorded at ${lapVoice}, sir.`
+      };
+    }
+
+    // E. STOP / RESET STOPWATCH
+    if (action === 'stop' || action === 'reset') {
+      const finalElapsed = this.stopwatchState.status === 'running'
+        ? (Date.now() - this.stopwatchState.startTime) + this.stopwatchState.elapsedBeforePause
+        : this.stopwatchState.elapsedBeforePause;
+
+      const formattedVoice = this.formatStopwatchVoice(finalElapsed);
+
+      this.stopwatchState = {
+        status: 'stopped',
+        startTime: 0,
+        elapsedBeforePause: 0,
+        laps: []
+      };
+
+      return {
+        success: true,
+        action: 'stop',
+        status: 'stopped',
+        message: finalElapsed > 0 ? `Stopwatch stopped and reset from ${formattedVoice}, sir.` : 'Stopwatch stopped and reset, sir.',
+        spokenResponse: 'Stopwatch stopped and reset, sir.',
+        hindiSpokenResponse: 'Stopwatch band kar di gayi hai, sir.'
+      };
+    }
+
+    // F. QUERY STATUS / ELAPSED TIME
+    const totalElapsed = this.stopwatchState.status === 'running'
+      ? (Date.now() - this.stopwatchState.startTime) + this.stopwatchState.elapsedBeforePause
+      : this.stopwatchState.elapsedBeforePause;
+
+    const formattedVoice = this.formatStopwatchVoice(totalElapsed);
+    const formattedDigital = this.formatStopwatchDigital(totalElapsed);
+
+    return {
+      success: true,
+      action: 'status',
+      status: this.stopwatchState.status,
+      elapsedMs: totalElapsed,
+      formattedTime: formattedDigital,
+      lapsCount: this.stopwatchState.laps.length,
+      message: this.stopwatchState.status === 'running'
+        ? `Stopwatch is currently running at ${formattedVoice}, sir.`
+        : this.stopwatchState.status === 'paused'
+        ? `Stopwatch is currently paused at ${formattedVoice}, sir.`
+        : 'Stopwatch is currently stopped at 0 seconds, sir.',
+      spokenResponse: this.stopwatchState.status === 'running'
+        ? `Stopwatch is running at ${formattedVoice}, sir.`
+        : this.stopwatchState.status === 'paused'
+        ? `Stopwatch is paused at ${formattedVoice}, sir.`
+        : 'Stopwatch is stopped, sir.'
+    };
+  }
+
+  // --- Helper Methods for Timer & Stopwatch ---
+
+  private static getLatestActiveTimer(id?: string): ActiveTimer | undefined {
+    if (id && this.activeTimers.has(id)) {
+      return this.activeTimers.get(id);
+    }
+    if (this.currentTimerId && this.activeTimers.has(this.currentTimerId)) {
+      return this.activeTimers.get(this.currentTimerId);
+    }
+    const all = Array.from(this.activeTimers.values());
+    return all.reverse().find(t => t.status === 'running' || t.status === 'paused');
+  }
+
+  private static armTimerTimeout(timer: ActiveTimer) {
+    if (this.timerTimeouts.has(timer.id)) {
+      clearTimeout(this.timerTimeouts.get(timer.id));
+    }
+
+    const delayMs = Math.max(0, timer.endTime - Date.now());
+    const timeout = setTimeout(() => {
+      timer.status = 'completed';
+      timer.remainingSeconds = 0;
+      console.log(`[ToolExecutor] ⏰ Timer "${timer.label}" (${timer.id}) completed!`);
+    }, delayMs);
+
+    this.timerTimeouts.set(timer.id, timeout);
+  }
+
+  private static parseDurationToSeconds(args: Record<string, any>): number {
+    // 1. Direct explicit numeric parameters
+    if (typeof args.durationSeconds === 'number' && args.durationSeconds > 0) {
+      const mins = typeof args.durationMinutes === 'number' ? args.durationMinutes : 0;
+      const hrs = typeof args.durationHours === 'number' ? args.durationHours : 0;
+      return (hrs * 3600) + (mins * 60) + args.durationSeconds;
+    }
+
+    if (typeof args.durationMinutes === 'number' && args.durationMinutes > 0) {
+      const hrs = typeof args.durationHours === 'number' ? args.durationHours : 0;
+      return (hrs * 3600) + (args.durationMinutes * 60);
+    }
+
+    if (typeof args.minutes === 'number' && args.minutes > 0) {
+      const secs = typeof args.seconds === 'number' ? args.seconds : 0;
+      const hrs = typeof args.hours === 'number' ? args.hours : 0;
+      return (hrs * 3600) + (args.minutes * 60) + secs;
+    }
+
+    if (typeof args.seconds === 'number' && args.seconds > 0) {
+      return args.seconds;
+    }
+
+    if (typeof args.hours === 'number' && args.hours > 0) {
+      return args.hours * 3600;
+    }
+
+    // 2. String parsing from 'duration', 'time', 'content', or 'query'
+    const str = (args.duration || args.time || args.content || args.query || '').toString().toLowerCase().trim();
+    if (str) {
+      let extractedSeconds = 0;
+      let matched = false;
+
+      // Match hours: e.g. "1 hour", "2 hrs", "1.5 hours"
+      const hrMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|ghante?|h)\b/i);
+      if (hrMatch) {
+        extractedSeconds += Math.round(parseFloat(hrMatch[1]) * 3600);
+        matched = true;
+      }
+
+      // Match minutes: e.g. "10 minutes", "10 min", "5 mins", "10 minute", "10m"
+      const minMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|minute|m)\b/i);
+      if (minMatch) {
+        extractedSeconds += Math.round(parseFloat(minMatch[1]) * 60);
+        matched = true;
+      }
+
+      // Match seconds: e.g. "30 seconds", "45 secs", "30 second", "30s"
+      const secMatch = str.match(/(\d+)\s*(?:seconds?|secs?|second|s)\b/i);
+      if (secMatch) {
+        extractedSeconds += parseInt(secMatch[1], 10);
+        matched = true;
+      }
+
+      // Pure digits (e.g. "10" or "5") -> default to minutes
+      if (!matched) {
+        const pureNum = parseInt(str.replace(/\D/g, ''), 10);
+        if (!isNaN(pureNum) && pureNum > 0) {
+          extractedSeconds = pureNum * 60; // 10 -> 600s
+          matched = true;
+        }
+      }
+
+      if (matched && extractedSeconds > 0) {
+        return extractedSeconds;
+      }
+    }
+
+    // Default fallback: 10 minutes (600 seconds)
+    return 600;
+  }
+
+  private static formatDurationVoice(totalSeconds: number): string {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    const parts: string[] = [];
+    if (hrs > 0) {
+      parts.push(`${hrs} ${hrs === 1 ? 'hour' : 'hours'}`);
+    }
+    if (mins > 0) {
+      parts.push(`${mins} ${mins === 1 ? 'minute' : 'minutes'}`);
+    }
+    if (secs > 0 || parts.length === 0) {
+      parts.push(`${secs} ${secs === 1 ? 'second' : 'seconds'}`);
+    }
+
+    if (parts.length === 1) return parts[0];
+    if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+    return `${parts[0]}, ${parts[1]} and ${parts[2]}`;
+  }
+
+  private static formatDurationHindi(totalSeconds: number): string {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    const parts: string[] = [];
+    if (hrs > 0) parts.push(`${hrs} ghanta`);
+    if (mins > 0) parts.push(`${mins} minute`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs} second`);
+
+    return parts.join(' aur ');
+  }
+
+  private static formatStopwatchVoice(elapsedMs: number): string {
+    const totalSec = Math.floor(elapsedMs / 1000);
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const ms = Math.floor((elapsedMs % 1000) / 10);
+
+    const parts: string[] = [];
+    if (hrs > 0) parts.push(`${hrs} ${hrs === 1 ? 'hour' : 'hours'}`);
+    if (mins > 0) parts.push(`${mins} ${mins === 1 ? 'minute' : 'minutes'}`);
+    parts.push(`${secs} ${secs === 1 ? 'second' : 'seconds'}`);
+
+    return parts.join(' and ');
+  }
+
+  private static formatStopwatchDigital(elapsedMs: number): string {
+    const totalSec = Math.floor(elapsedMs / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    const ms = Math.floor((elapsedMs % 1000) / 10);
+
+    const mm = mins.toString().padStart(2, '0');
+    const ss = secs.toString().padStart(2, '0');
+    const cs = ms.toString().padStart(2, '0');
+
+    return `${mm}:${ss}.${cs}`;
+  }
+
   private static async executeMediaAction(action: string, songOrArtist?: string, platform?: string): Promise<Record<string, any>> {
     const plat = platform || 'youtube';
     if (action === 'search' && songOrArtist) {
@@ -990,3 +2051,4 @@ export class ToolExecutor {
 }
 
 export default ToolExecutor;
+

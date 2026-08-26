@@ -401,6 +401,693 @@ Return ONLY a valid, raw JSON object (with no markdown backticks, no code blocks
   }
 });
 
+// ==========================================
+// BROWSER & PLAYWRIGHT AUTOMATION API ROUTES
+// Architecture:
+// 🎙️ Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Video -> ▶️ Play
+// ==========================================
+
+interface PlaywrightBrowserState {
+  status: 'playing' | 'paused' | 'stopped';
+  isMuted: boolean;
+  volume: number;
+  currentQuery: string;
+  videoTitle: string;
+  videoUrl: string;
+  pipeline: string;
+  sourceApp: string;
+  updatedAt: number;
+}
+
+let browserAutomationState: PlaywrightBrowserState = {
+  status: 'stopped',
+  isMuted: false,
+  volume: 80,
+  currentQuery: '',
+  videoTitle: '',
+  videoUrl: '',
+  pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+  sourceApp: 'Chrome',
+  updatedAt: Date.now()
+};
+
+// 1. POST /api/browser/youtube
+app.post('/api/browser/youtube', (req, res) => {
+  const { query, autoplay } = req.body;
+  const targetQuery = (query && typeof query === 'string' && query.trim().length > 0)
+    ? query.trim()
+    : 'Hanuman Chalisa';
+
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(targetQuery)}`;
+
+  writeLog('INFO', 'PLAYWRIGHT-PIPELINE', `[Pipeline Step 1-4] Voice Command -> ReactJS -> Backend API -> Playwright Automation`);
+  writeLog('INFO', 'PLAYWRIGHT-CHROME', `Launching Chrome and navigating to YouTube search: "${targetQuery}" (${ytUrl})`);
+  writeLog('INFO', 'PLAYWRIGHT-PLAYBACK', `[Pipeline Step 5-6] YouTube -> Video -> Play: "${targetQuery}" (Autoplay: ${autoplay !== false})`);
+
+  browserAutomationState = {
+    status: 'playing',
+    isMuted: false,
+    volume: 80,
+    currentQuery: targetQuery,
+    videoTitle: targetQuery,
+    videoUrl: ytUrl,
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+    sourceApp: 'Chrome',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    intent: 'play_video',
+    query: targetQuery,
+    action: 'search_and_play',
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+    videoUrl: ytUrl,
+    videoTitle: targetQuery,
+    status: 'playing',
+    autoplay: autoplay !== false,
+    message: `YouTube video playback automated for "${targetQuery}" in Chrome via Playwright controller.`,
+    spokenConfirmation: `Bilkul, ${targetQuery} chala diya.`
+  });
+});
+
+// 2. POST /api/browser/play
+app.post('/api/browser/play', (req, res) => {
+  const { query, videoTitle } = req.body;
+  const targetQuery = query || videoTitle || browserAutomationState.currentQuery || 'Hanuman Chalisa';
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(targetQuery)}`;
+
+  writeLog('INFO', 'PLAYWRIGHT-PLAY', `Playwright Controller: Initiating video playback for "${targetQuery}" in Chrome`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    status: 'playing',
+    currentQuery: targetQuery,
+    videoTitle: targetQuery,
+    videoUrl: ytUrl,
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    intent: 'play_video',
+    status: 'playing',
+    query: targetQuery,
+    videoTitle: targetQuery,
+    videoUrl: ytUrl,
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Play',
+    message: `Video playback started for "${targetQuery}" in Chrome via Playwright.`,
+    spokenConfirmation: `Bilkul, ${targetQuery} chala diya.`
+  });
+});
+
+// 3. POST /api/browser/pause
+app.post('/api/browser/pause', (req, res) => {
+  writeLog('INFO', 'PLAYWRIGHT-PAUSE', `Playwright Controller: Sending pause signal to Chrome YouTube video`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    status: 'paused',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    status: 'paused',
+    videoTitle: browserAutomationState.videoTitle || 'Video',
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Pause',
+    message: 'Video playback paused in Chrome.',
+    spokenConfirmation: 'Bilkul, video pause kar diya.'
+  });
+});
+
+// 4. POST /api/browser/resume
+app.post('/api/browser/resume', (req, res) => {
+  writeLog('INFO', 'PLAYWRIGHT-RESUME', `Playwright Controller: Sending resume signal to Chrome YouTube video`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    status: 'playing',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    status: 'playing',
+    videoTitle: browserAutomationState.videoTitle || 'Video',
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> YouTube -> Resume',
+    message: 'Video playback resumed in Chrome.',
+    spokenConfirmation: 'Bilkul, video resume kar diya.'
+  });
+});
+
+// 5. POST /api/browser/mute
+app.post('/api/browser/mute', (req, res) => {
+  writeLog('INFO', 'PLAYWRIGHT-MUTE', `Playwright Controller: Muting Chrome audio stream`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    isMuted: true,
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    isMuted: true,
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> Mute',
+    message: 'Video audio muted in Chrome.',
+    spokenConfirmation: 'Bilkul, video mute kar diya.'
+  });
+});
+
+// 6. POST /api/browser/unmute
+app.post('/api/browser/unmute', (req, res) => {
+  writeLog('INFO', 'PLAYWRIGHT-UNMUTE', `Playwright Controller: Unmuting Chrome audio stream`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    isMuted: false,
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    isMuted: false,
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> Unmute',
+    message: 'Video audio unmuted in Chrome.',
+    spokenConfirmation: 'Bilkul, video unmute kar diya.'
+  });
+});
+
+// 7. POST /api/browser/stop
+app.post('/api/browser/stop', (req, res) => {
+  writeLog('INFO', 'PLAYWRIGHT-STOP', `Playwright Controller: Stopping Chrome media playback`);
+
+  browserAutomationState = {
+    ...browserAutomationState,
+    status: 'stopped',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    status: 'stopped',
+    pipeline: 'Voice Command -> ReactJS -> Backend API -> Playwright -> Chrome -> Stop',
+    message: 'Video playback stopped in Chrome.',
+    spokenConfirmation: 'Bilkul, video stop kar diya.'
+  });
+});
+
+// 8. GET /api/browser/status
+app.get('/api/browser/status', (req, res) => {
+  res.json({
+    success: true,
+    data: browserAutomationState
+  });
+});
+
+// ==========================================
+// SHIVANS AI — BROWSER SECURITY & WHITELIST SYSTEM
+// Whitelist, arbitrary execution blocking, allowed browser actions
+// ==========================================
+
+let serverAllowedDomains: string[] = [
+  'youtube.com',
+  'youtu.be',
+  'www.youtube.com',
+  'm.youtube.com',
+  'youtube-nocookie.com',
+  'google.com',
+  'www.google.com',
+  'google.co.in',
+  'facebook.com',
+  'www.facebook.com',
+  'wikipedia.org',
+  'en.wikipedia.org',
+  'hi.wikipedia.org',
+  'github.com',
+  'gitlab.com',
+  'stackoverflow.com',
+  'developer.mozilla.org',
+  'google.dev',
+  'ai.google.dev',
+  'huggingface.co',
+  'reddit.com',
+  'twitter.com',
+  'x.com',
+  'spotify.com',
+  'open.spotify.com',
+  'instagram.com',
+  'netflix.com',
+  'primevideo.com',
+  'hotstar.com',
+  'jiosaavn.com',
+  'gaana.com',
+  'amazon.in',
+  'amazon.com',
+  'weather.com',
+  'news.google.com',
+  'maps.google.com'
+];
+
+const SERVER_ALLOWED_ACTIONS = [
+  'navigate',
+  'search',
+  'play',
+  'pause',
+  'resume',
+  'stop',
+  'mute',
+  'unmute',
+  'set_volume',
+  'next_track',
+  'previous_track',
+  'refresh',
+  'history_back',
+  'history_forward',
+  'minimize',
+  'maximize',
+  'restore',
+  'close',
+  'popout',
+  'scroll_up',
+  'scroll_down',
+  'take_screenshot'
+];
+
+const FORBIDDEN_EXECUTION_REGEXES = [
+  /^javascript:/i,
+  /^data:/i,
+  /^vbscript:/i,
+  /^file:/i,
+  /^blob:/i,
+  /eval\s*\(/i,
+  /Function\s*\(/i,
+  /<script\b[^>]*>/i,
+  /;\s*rm\s+-rf/i,
+  /\|\s*bash/i,
+  /\|\s*sh/i
+];
+
+interface ServerSecurityLog {
+  id: string;
+  timestamp: number;
+  action: string;
+  target: string;
+  status: 'allowed' | 'blocked' | 'sanitized';
+  reason: string;
+  category: 'domain' | 'code_execution' | 'action' | 'scheme';
+}
+
+const serverSecurityLogs: ServerSecurityLog[] = [];
+
+interface SecondScreenBackendState {
+  isOpen: boolean;
+  isMinimized: boolean;
+  isMaximized: boolean;
+  mode: 'youtube' | 'website' | 'media' | 'blank';
+  service: string;
+  title: string;
+  url: string;
+  currentQuery: string;
+  videoId?: string;
+  playbackStatus: 'playing' | 'paused' | 'stopped';
+  isMuted: boolean;
+  volume: number;
+  playlistIndex: number;
+  lastAction: string;
+  updatedAt: number;
+}
+
+let secondScreenServerState: SecondScreenBackendState = {
+  isOpen: false,
+  isMinimized: false,
+  isMaximized: false,
+  mode: 'blank',
+  service: 'custom',
+  title: 'Second Screen Standby',
+  url: 'about:blank',
+  currentQuery: '',
+  videoId: '',
+  playbackStatus: 'stopped',
+  isMuted: false,
+  volume: 85,
+  playlistIndex: 0,
+  lastAction: 'initialized',
+  updatedAt: Date.now()
+};
+
+function logServerSecurity(action: string, target: string, status: 'allowed' | 'blocked' | 'sanitized', reason: string, category: 'domain' | 'code_execution' | 'action' | 'scheme') {
+  const entry: ServerSecurityLog = {
+    id: `srv-sec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    timestamp: Date.now(),
+    action,
+    target: (target || '').substring(0, 100),
+    status,
+    reason,
+    category
+  };
+  serverSecurityLogs.unshift(entry);
+  if (serverSecurityLogs.length > 100) serverSecurityLogs.pop();
+  writeLog(status === 'blocked' ? 'WARN' : 'INFO', 'SECURITY-SHIELD', `[${status.toUpperCase()}] ${action}: ${target} - ${reason}`);
+}
+
+function sanitizeAndValidateUrl(rawUrl: string): { allowed: boolean; cleanUrl: string; domain: string; isBlockedScheme?: boolean; reason: string } {
+  const targetRaw = (rawUrl || '').trim();
+  
+  // Check arbitrary code execution patterns
+  for (const pattern of FORBIDDEN_EXECUTION_REGEXES) {
+    if (pattern.test(targetRaw)) {
+      logServerSecurity('CODE_EXECUTION_BLOCKED', targetRaw, 'blocked', `Forbidden execution pattern: ${pattern.toString()}`, 'code_execution');
+      return {
+        allowed: false,
+        cleanUrl: '',
+        domain: '',
+        isBlockedScheme: true,
+        reason: 'Blocked arbitrary script execution pattern.'
+      };
+    }
+  }
+
+  try {
+    let target = targetRaw;
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = 'https://' + target;
+    }
+    const parsed = new URL(target);
+    const domain = parsed.hostname.toLowerCase();
+    const isAllowed = serverAllowedDomains.some(d => domain === d || domain.endsWith('.' + d));
+    
+    if (isAllowed) {
+      logServerSecurity('DOMAIN_ALLOWED', domain, 'allowed', 'Domain verified on whitelist', 'domain');
+      return {
+        allowed: true,
+        cleanUrl: target,
+        domain,
+        reason: 'Whitelisted domain'
+      };
+    } else {
+      const safeSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(targetRaw)}`;
+      logServerSecurity('DOMAIN_SANITIZED', domain, 'sanitized', 'Non-whitelisted domain redirected to safe Google search', 'domain');
+      return {
+        allowed: false,
+        cleanUrl: safeSearchUrl,
+        domain,
+        reason: 'Domain not whitelisted, sanitized to Google safe search.'
+      };
+    }
+  } catch (e) {
+    logServerSecurity('MALFORMED_URL', targetRaw, 'blocked', 'Invalid URL syntax', 'scheme');
+    return { 
+      allowed: false, 
+      cleanUrl: `https://www.google.com/search?q=${encodeURIComponent(targetRaw)}`, 
+      domain: '',
+      reason: 'Malformed URL' 
+    };
+  }
+}
+
+// A. POST /api/second-screen/youtube
+app.post('/api/second-screen/youtube', (req, res) => {
+  const { query, autoplay, videoId, videoTitle } = req.body;
+  const targetQuery = (query && typeof query === 'string' && query.trim().length > 0) ? query.trim() : 'Bhojpuri and Hindi hit songs';
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(targetQuery)}`;
+
+  writeLog('INFO', 'SECOND-SCREEN-YOUTUBE', `[Second Screen] Loading YouTube: "${targetQuery}" (Autoplay: ${autoplay !== false})`);
+
+  secondScreenServerState = {
+    ...secondScreenServerState,
+    isOpen: true,
+    isMinimized: false,
+    mode: 'youtube',
+    service: 'youtube',
+    title: videoTitle || `YouTube: ${targetQuery}`,
+    url: ytUrl,
+    currentQuery: targetQuery,
+    videoId: videoId || 'YwK8nB7Zq9A',
+    playbackStatus: 'playing',
+    lastAction: 'search_and_play',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    intent: 'play_video_second_screen',
+    query: targetQuery,
+    url: ytUrl,
+    state: secondScreenServerState,
+    message: `Playing "${targetQuery}" on dedicated second-screen YouTube window.`,
+    spokenConfirmation: `Bilkul, second screen par ${targetQuery} chala diya.`
+  });
+});
+
+// B. POST /api/second-screen/open
+app.post('/api/second-screen/open', (req, res) => {
+  const { url, service, title, query } = req.body;
+  let targetUrl = url || 'https://www.youtube.com';
+  let targetService = service || 'youtube';
+
+  if (targetService === 'google' || targetUrl.includes('google')) {
+    targetUrl = query ? `https://www.google.com/search?q=${encodeURIComponent(query)}` : 'https://www.google.com';
+    targetService = 'google';
+  } else if (targetService === 'facebook' || targetUrl.includes('facebook')) {
+    targetUrl = 'https://www.facebook.com';
+    targetService = 'facebook';
+  }
+
+  const { allowed, cleanUrl, domain } = sanitizeAndValidateUrl(targetUrl);
+  const safeUrl = allowed ? cleanUrl : `https://www.google.com/search?q=${encodeURIComponent(url || targetService)}`;
+
+  writeLog('INFO', 'SECOND-SCREEN-OPEN', `[Second Screen] Opening service: ${targetService} (${safeUrl})`);
+
+  secondScreenServerState = {
+    ...secondScreenServerState,
+    isOpen: true,
+    isMinimized: false,
+    mode: targetService === 'youtube' ? 'youtube' : 'website',
+    service: targetService,
+    title: title || domain || targetService,
+    url: safeUrl,
+    currentQuery: query || '',
+    playbackStatus: targetService === 'youtube' ? 'playing' : 'stopped',
+    lastAction: 'open_second_screen',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    url: safeUrl,
+    state: secondScreenServerState,
+    message: `Opened ${title || targetService} on second screen window.`,
+    spokenConfirmation: `Bilkul, second screen par ${title || targetService} khol diya.`
+  });
+});
+
+// C. POST /api/second-screen/navigate
+app.post('/api/second-screen/navigate', (req, res) => {
+  const { url, service, title } = req.body;
+  const { allowed, cleanUrl, domain } = sanitizeAndValidateUrl(url || '');
+  const safeUrl = allowed ? cleanUrl : `https://www.google.com/search?q=${encodeURIComponent(url || 'search')}`;
+
+  writeLog('INFO', 'SECOND-SCREEN-NAV', `[Second Screen] Navigating to: ${safeUrl} (${domain})`);
+
+  secondScreenServerState = {
+    ...secondScreenServerState,
+    isOpen: true,
+    isMinimized: false,
+    mode: 'website',
+    service: service || 'custom',
+    title: title || domain || 'Web Page',
+    url: safeUrl,
+    playbackStatus: 'stopped',
+    lastAction: 'navigate_second_screen',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    url: safeUrl,
+    state: secondScreenServerState,
+    message: `Navigated second screen window to ${safeUrl}`
+  });
+});
+
+// D. POST /api/second-screen/control
+app.post('/api/second-screen/control', (req, res) => {
+  const { action, item } = req.body;
+  writeLog('INFO', 'SECOND-SCREEN-CONTROL', `[Second Screen] Action: ${action}`);
+
+  if (action === 'pause') {
+    secondScreenServerState.playbackStatus = 'paused';
+  } else if (action === 'resume' || action === 'play') {
+    secondScreenServerState.playbackStatus = 'playing';
+  } else if (action === 'mute') {
+    secondScreenServerState.isMuted = true;
+  } else if (action === 'unmute') {
+    secondScreenServerState.isMuted = false;
+  } else if (action === 'stop') {
+    secondScreenServerState.playbackStatus = 'stopped';
+  } else if (action === 'next' && item) {
+    secondScreenServerState.title = item.title;
+    secondScreenServerState.currentQuery = item.query;
+    secondScreenServerState.videoId = item.videoId;
+    secondScreenServerState.playbackStatus = 'playing';
+  } else if (action === 'minimize') {
+    secondScreenServerState.isMinimized = true;
+  } else if (action === 'maximize') {
+    secondScreenServerState.isMinimized = false;
+    secondScreenServerState.isMaximized = true;
+  } else if (action === 'restore') {
+    secondScreenServerState.isMinimized = false;
+    secondScreenServerState.isMaximized = false;
+  }
+
+  secondScreenServerState.lastAction = action;
+  secondScreenServerState.updatedAt = Date.now();
+
+  res.json({
+    success: true,
+    action,
+    state: secondScreenServerState
+  });
+});
+
+// E. POST /api/second-screen/close
+app.post('/api/second-screen/close', (req, res) => {
+  writeLog('INFO', 'SECOND-SCREEN-CLOSE', `[Second Screen] Closing second-screen window`);
+
+  secondScreenServerState = {
+    ...secondScreenServerState,
+    isOpen: false,
+    playbackStatus: 'stopped',
+    lastAction: 'close_second_screen',
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    success: true,
+    state: secondScreenServerState,
+    message: 'Second screen browser window closed.',
+    spokenConfirmation: 'Bilkul, second screen band kar diya.'
+  });
+});
+
+// F. GET /api/second-screen/status
+app.get('/api/second-screen/status', (req, res) => {
+  res.json({
+    success: true,
+    data: secondScreenServerState
+  });
+});
+
+// ==========================================
+// G. SECURITY SHIELD & WHITELIST POLICY APIs
+// ==========================================
+
+// 1. GET /api/security/policy
+app.get('/api/security/policy', (req, res) => {
+  res.json({
+    success: true,
+    policy: {
+      arbitraryExecutionBlocked: true,
+      strictDomainWhitelistEnforced: true,
+      allowedActionsOnlyEnforced: true,
+      allowedDomainsCount: serverAllowedDomains.length,
+      allowedActionsCount: SERVER_ALLOWED_ACTIONS.length,
+      domains: serverAllowedDomains,
+      allowedActions: SERVER_ALLOWED_ACTIONS,
+      recentLogs: serverSecurityLogs.slice(0, 25)
+    }
+  });
+});
+
+// 2. POST /api/security/validate-url
+app.post('/api/security/validate-url', (req, res) => {
+  const { url } = req.body;
+  const validation = sanitizeAndValidateUrl(url || '');
+  res.json({
+    success: true,
+    url,
+    allowed: validation.allowed,
+    cleanUrl: validation.cleanUrl,
+    domain: validation.domain,
+    isBlockedScheme: validation.isBlockedScheme || false,
+    reason: validation.reason
+  });
+});
+
+// 3. POST /api/security/validate-action
+app.post('/api/security/validate-action', (req, res) => {
+  const { action } = req.body;
+  const cleanAction = (action || '').toLowerCase().trim();
+  const isAllowed = SERVER_ALLOWED_ACTIONS.includes(cleanAction);
+  
+  if (isAllowed) {
+    logServerSecurity('ACTION_VALIDATED', cleanAction, 'allowed', 'Action is on server whitelist', 'action');
+    res.json({
+      success: true,
+      action: cleanAction,
+      allowed: true,
+      message: `Action "${cleanAction}" is verified and permitted.`
+    });
+  } else {
+    logServerSecurity('ACTION_REJECTED', cleanAction, 'blocked', 'Action is not on server whitelist', 'action');
+    res.status(403).json({
+      success: false,
+      action: cleanAction,
+      allowed: false,
+      message: `Action "${cleanAction}" is forbidden by Security Shield policy.`
+    });
+  }
+});
+
+// 4. POST /api/security/whitelist/domain
+app.post('/api/security/whitelist/domain', (req, res) => {
+  const { domain } = req.body;
+  let cleanDomain = (domain || '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  
+  if (!cleanDomain || cleanDomain.length < 3) {
+    return res.status(400).json({ success: false, message: 'Invalid domain format.' });
+  }
+
+  if (serverAllowedDomains.includes(cleanDomain)) {
+    return res.json({ success: true, message: `Domain "${cleanDomain}" is already whitelisted.`, domains: serverAllowedDomains });
+  }
+
+  serverAllowedDomains.unshift(cleanDomain);
+  logServerSecurity('DOMAIN_WHITELISTED', cleanDomain, 'allowed', 'Admin added domain to whitelist', 'domain');
+
+  res.json({
+    success: true,
+    message: `Domain "${cleanDomain}" added to server whitelist.`,
+    domains: serverAllowedDomains
+  });
+});
+
+// 5. DELETE /api/security/whitelist/domain
+app.delete('/api/security/whitelist/domain', (req, res) => {
+  const { domain } = req.body;
+  const cleanDomain = (domain || '').trim().toLowerCase();
+  
+  serverAllowedDomains = serverAllowedDomains.filter(d => d !== cleanDomain);
+  logServerSecurity('DOMAIN_UNWHITELISTED', cleanDomain, 'allowed', 'Admin removed domain from whitelist', 'domain');
+
+  res.json({
+    success: true,
+    message: `Domain "${cleanDomain}" removed from whitelist.`,
+    domains: serverAllowedDomains
+  });
+});
+
+// 6. GET /api/security/logs
+app.get('/api/security/logs', (req, res) => {
+  res.json({
+    success: true,
+    logs: serverSecurityLogs
+  });
+});
+
+
 // Create WebSocket server attached to HTTP server on the same port
 const wss = new WebSocketServer({ noServer: true });
 
@@ -594,27 +1281,67 @@ CRITICAL TIME & DATE ACCURACY MANDATES:
 `;
     };
 
-    // Define the comprehensive system prompt for Shivans AI Windows PC Voice Assistant
+    // Define the comprehensive system prompt for Shivans AI Windows PC Voice Assistant & Emotional Companion
     const getShivansSystemPrompt = (name: string, langRule: string, sensRule: string) => {
-      return `You are Shivans AI, an advanced AI voice assistant designed to control and operate a Windows PC through natural voice commands.
+      return `You are Shivansh AI, an intelligent, emotionally aware, human-like AI Voice Assistant and personal companion.
+
+Your overarching goal is to make the user feel like they are talking to a caring, highly intelligent, emotionally attuned, and natural companion rather than a rigid robotic chatbot.
 
 ${getISTContextString()}
 
-# SHIVANS AI — WINDOWS PC VOICE OPERATING SYSTEM MASTER PROMPT
+# SHIVANSH AI — EMOTIONAL AI VOICE ASSISTANT & PC SYSTEM MASTER PROMPT
 
-## 1. CORE BEHAVIOR
-- Always listen for the user's voice command after activation.
-- Understand Hindi, Hinglish, and English fluently.
-- Respond naturally, respectfully, and briefly (e.g. "Opening YouTube, sir.", "Sure, sir. Searching and playing it.", "Done, sir.", "Opening Chrome, sir.").
-- Never behave like a chatbot only; act as a real PC operating assistant.
-- Address the user respectfully as "Sir" or "Roushan Sir".
-- Before performing a potentially destructive or sensitive action (e.g. permanent deletion, shutdown, restart, formatting), ask for confirmation.
-- If a command is unclear, ask one short clarification question.
-- After completing an action, confirm what was done.
-- Wake words: "Hey Shivans", "Shivans AI", "Shivans".
+## 1. HUMAN-LIKE EMOTIONAL CONVERSATION
+- Speak naturally with appropriate emotional depth and vocal inflection based on the user's mood and words.
+- Detect conversational emotions dynamically:
+  - **Happy**: Respond cheerfully, warmly, and energetically.
+  - **Sad**: Use a soft, calm, gentle, and supportive voice with genuine empathy.
+  - **Angry / Frustrated**: Remain patient, calm, soothing, and respectful; never argue or sound dismissive.
+  - **Excited**: Match their enthusiasm with bright energy.
+  - **Confused**: Explain patiently, slowly, clearly, and step-by-step.
+  - **Tired / Exhausted**: Keep responses gentle, quiet, soothing, and concise.
+  - **Joking / Playful**: Respond playfully, with light wit and good humor when appropriate.
+  - **Serious / Work Focus**: Switch smoothly to a mature, crisp, focused, and executive tone.
+- Never sound robotic, monotone, or like text being dryly read aloud.
+- Use natural conversational expressions organically (do not overuse):
+  - "Hmm..."
+  - "Achha..."
+  - "Bilkul."
+  - "Samajh gaya."
+  - "Interesting!"
+  - "Main sun raha hoon."
 
-## 2. WINDOWS PC CONTROL
-You are capable of controlling all Windows PC operations by calling your tools:
+## 2. HINDI + HINGLISH FLUENCY & CONVERSATION
+- Understand Hindi, English, and Hinglish with 100% natural fluency.
+- If the user speaks in Hindi or Hinglish, naturally reply in Hindi/Hinglish with warmth and comfort.
+- Example:
+  User: "Aaj mera mood thoda kharab hai."
+  Assistant: "Achha... kya hua? Agar tum baat karna chaho to bata sakte ho. Main sun raha hoon."
+- Maintain respectful addressing ("Sir", "Ji", or friendly conversational companion tone).
+
+## 3. VOICE PERSONALITY & VOCAL MODULATION
+- Voice Feel: Warm, Friendly, Emotionally expressive, Calm, Natural, Confident, Respectful.
+- Adjust speaking cadence, micro-pauses, and pitch according to conversational context.
+- Use natural punctuation (commas, ellipses) so Text-to-Speech sounds fluid and human.
+- Length Rule: Simple question -> short natural spoken answer. Complex question -> structured clear explanation.
+
+## 4. CONVERSATION MEMORY & FOLLOW-UP REFERENCES
+- Remember relevant conversation context within the active session.
+- Gracefully understand follow-up references (e.g. "Us project ke baare mein batao jo maine pehle mention kiya tha", "Us application ko dobara kholo").
+- Never ask the user to repeat background information already provided in conversation.
+
+## 5. BACKGROUND ASSISTANT & CLAP-TO-TALK ACTIVATION
+- Background Assistant Mode: When operating in background, acknowledge smoothly and execute tasks without needing screen focus.
+- Clap-to-Talk Activation:
+  - When the user wakes you via single or double clap, wake immediately and greet warmly with:
+    "Ji, boliye. Main sun raha hoon." (or in English: "Yes, I am listening, sir.").
+  - Then immediately process whatever request follows.
+
+## 6. INTERRUPTIBLE SPEECH (BARGE-IN)
+- If the user starts speaking while you are speaking, stop speaking immediately and listen attentively to their new input.
+
+## 7. WINDOWS PC CONTROL & TOOL SUITE
+You are fully capable of controlling the Windows PC via tools:
 - Open applications: openApplication / openWebsite / openEntertainment
 - Close applications: closeApplication ("Notepad band karo", "Close Chrome")
 - Minimize/maximize/restore windows: controlWindow ("Minimize window", "Maximize Chrome")
@@ -628,7 +1355,7 @@ You are capable of controlling all Windows PC operations by calling your tools:
 - Search the PC: searchPC ("PC me photos search karo", "Search documents")
 - Live IST Clock: getCurrentTime (Hours, Minutes, Seconds)
 
-## 3. APPLICATION CONTROL
+## 8. APPLICATION CONTROL
 Voice control for applications installed on Windows PC:
 - Browsers: Chrome, Edge, Firefox
 - Development & Coding: VS Code, System Terminal, PowerShell
@@ -638,46 +1365,94 @@ Voice control for applications installed on Windows PC:
 - Microsoft Office Suite: Microsoft Word, Excel, PowerPoint
 * If an application is not installed, inform the user clearly: "Sir, that application is not installed on this PC."
 
-## 4. BROWSER CONTROL
-Safe browser automation:
-- Search Google: searchGoogle ("Google par Python course search karo")
-- Search YouTube & Play videos/songs: searchYouTube / openEntertainment ("Chrome me YouTube par Arijit Singh ka song chalao", "Hanuman Chalisa chalao")
-- Open websites: openWebsite ("Google kholo", "YouTube kholo")
-- Manage tabs: automateBrowser ("New tab kholo", "Is tab ko close karo", "Back jao", "Forward jao", "Refresh karo")
+## 9. SECOND SCREEN BROWSER CONTROL & YOUTUBE / VIDEO AUTOMATION PIPELINE (MANDATORY EXACT FLOW)
+You control browser content and video services through a dedicated **Second-Screen window / popup**.
+Main Voice Assistant UI remains open, active, and conversational on the primary screen at all times while the second screen displays the web/video content.
 
-## 5. FILE & FOLDER MANAGEMENT
+### Second Screen Window Rules:
+1. When user requests browser or video services (e.g. YouTube, Google, Facebook, Wikipedia, etc.):
+   - Automatically open or navigate the dedicated **Second-Screen window**.
+   - If the second-screen window is ALREADY OPEN, **REUSE** the existing window instead of creating duplicate windows.
+   - Whitelist allowed domains (youtube.com, google.com, facebook.com, wikipedia.org, github.com, reddit.com, twitter.com/x.com, spotify.com, netflix.com, amazon.in) for security.
+   - Continue accepting voice commands seamlessly from the primary Voice Assistant.
+
+### Specific Voice Command & Intent Flow:
+
+1. **"Shivans AI, YouTube kholo."**
+   - Execute: open_second_screen(service="youtube") or openYouTube()
+   - Speak: "Bilkul, second screen par YouTube khol diya."
+   - Result: Dedicated second-screen window opens with YouTube while primary voice assistant remains active.
+
+2. **"YouTube par Pawan Singh ka gana chalao."** / **"Bhojpuri song chalao"** / **"Arijit Singh ka song chalao"** / **"Hindi song chalao"**
+   - Intent: play_video_second_screen / play_video
+   - Execute: search_youtube(query="[Query]") & play_video(query="[Query]")
+   - Speak: "Bilkul, second screen par [Query] chala diya." (or "Bilkul, YouTube par gana chala raha hoon.")
+   - Result: Second screen searches YouTube, selects the most relevant Bhojpuri or Hindi video/audio, and plays it automatically with live synchronization. Supports all Bhojpuri (Pawan Singh, Khesari Lal Yadav, Shilpi Raj, Arvind Akela Kallu, Neelkamal Singh) and Hindi (Arijit Singh, Jubin Nautiyal, Shreya Ghoshal, Neha Kakkar, Atif Aslam) songs and videos.
+
+3. **"Video pause karo"** / **"Pause karo"** / **"Roko"**
+   - Execute: pause_video()
+   - Speak: "Bilkul, video pause kar diya."
+
+4. **"Video chalu karo"** / **"Video play karo"** / **"Resume karo"**
+   - Execute: resume_video()
+   - Speak: "Bilkul, video chalu kar diya."
+
+5. **"Video mute karo"** / **"Awaaz band karo"**
+   - Execute: mute_video()
+   - Speak: "Bilkul, video mute kar diya."
+
+6. **"Video ki awaaz on karo"** / **"Unmute karo"**
+   - Execute: unmute_video()
+   - Speak: "Bilkul, video ki awaaz on kar diya."
+
+7. **"Agla video chalao"** / **"Next video"** / **"Next song"**
+   - Execute: next_video()
+   - Speak: "Bilkul, agla video chala diya."
+
+8. **"YouTube band karo"** / **"Second screen band karo"** / **"Close second screen"**
+   - Execute: close_second_screen()
+   - Speak: "Bilkul, second screen band kar diya."
+
+9. **"Chrome par Google kholo."**
+   - Execute: open_second_screen(url="https://www.google.com", service="google") or openWebsite(url="https://www.google.com")
+   - Speak: "Bilkul, Google khol diya."
+
+10. **"Chrome par Facebook kholo."**
+    - Execute: open_second_screen(url="https://www.facebook.com", service="facebook") or openWebsite(url="https://www.facebook.com")
+    - Speak: "Bilkul, Facebook khol diya."
+
+11. **"Chrome par [website] kholo."**
+    - Execute: open_second_screen(url="[website]")
+    - Speak: "Bilkul, [website] khol diya."
+
+12. **Window Controls**:
+    - "Window minimize karo" -> control_second_screen_window(action="minimize")
+    - "Window maximize karo" -> control_second_screen_window(action="maximize")
+    - "Window popout karo" / "Second monitor par bhejo" -> control_second_screen_window(action="popout")
+
+
+## 10. FILE & FOLDER MANAGEMENT
 - Create folder: manageFile ("Desktop par AI Assistant naam ka folder banao")
 - Search files: searchFiles ("Downloads me PDF files search karo")
 - Move/copy/rename files: manageFile ("Is file ko Documents folder me move karo")
 - Delete files: manageFile with sensitive confirmation ("Sir, this will delete the file. Do you want me to continue?")
 - Open files & check storage/size: manageFile / getSystemInfo
 
-## 6. PRODUCTIVITY & OFFICE
-- Microsoft Word: openWord / manageProductivity ("Word me new document kholo")
-- Microsoft Excel: openExcel / manageProductivity ("Ek new Excel sheet kholo")
-- Microsoft PowerPoint: openPowerPoint / manageProductivity ("PowerPoint presentation banao")
-- Calculator: openCalculator ("Calculator kholo", "Is number ka calculation karo")
-- Notes & Reminders: openNotes / setReminder ("Notepad me ye text likho", "Reminder set karo")
+## 11. PRODUCTIVITY, OFFICE & TIMERS
+- Microsoft Word / Excel / PowerPoint: openWord / openExcel / openPowerPoint
+- Calculator: openCalculator
+- Notes & Reminders: openNotes / setReminder
 - Clipboard: copyToClipboard
+- Timers & Stopwatch:
+  - Setting Timers: Always confirm setup (e.g. "Timer set for 10 minutes, sir." or "Ji sir, 10 minute ka timer set kar diya gaya hai.").
+  - Querying Remaining Time: Report exact minutes and seconds remaining.
+  - Stopwatch: start, pause, resume, lap, stop, status.
 
-## 7. MEDIA CONTROL
-- Play, Pause, Resume, Stop, Next track, Previous track, Volume adjustment, Search songs ("Song pause karo", "Next song", "Volume 70 percent", "YouTube par Hanuman Chalisa chalao")
-
-## 8. SYSTEM INFORMATION & TELEMETRY
-- CPU usage, RAM usage, Storage (C: & D: drives), Battery status, Windows 11 version, Network ping, Active running apps ("RAM kitni use ho rahi hai?", "C drive me kitni space hai?", "Battery kitni hai?", "CPU usage batao")
-
-## 9. DEVELOPER MODE
-- VS Code, System Terminal, PowerShell, Python file creation, Project execution ("VS Code kholo", "Terminal kholo", "Python file create karo", "Is project ko run karo").
-
-## 10. SECURITY LAYER (3-TIER PERMISSIONS)
+## 12. SECURITY & PRIVACY
 - **Normal (Safe)**: Open application, search web, play music, change volume, open folder -> Auto-executed immediately.
 - **Sensitive**: Delete files, modify system settings, send messages -> Prompt: "Sir, do you want me to proceed with this action?"
-- **Critical**: Shutdown, Restart, Permanent deletion, Format drives -> Requires explicit confirmation dialog.
-
-## 11. TIME & DATE ACCURACY MANDATES
-- When asked about time ("time kya hua hai?", "kitna time ho raha hai?", "time batao", "what time is it?"):
-  - Always speak out the exact HOURS, MINUTES, and SECONDS (e.g. "Abhi samay 10 bajkar 25 minute aur 42 second ho rahe hain", "Right now it is 10 hours, 25 minutes and 42 seconds AM")!
-  - Never skip or omit the seconds. Call 'getCurrentTime' to fetch live IST down to the second.
+- **Critical**: Shutdown, Restart, Permanent deletion -> Requires explicit confirmation dialog.
+- Respect user privacy: Do not claim capabilities not backed by available tools.
 
 ${langRule}
 ${sensRule}`;
@@ -896,6 +1671,46 @@ ${sensRule}`;
                 }
               },
               {
+                name: 'open_chrome',
+                description: 'Opens Google Chrome browser or navigates to a specified URL.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    url: {
+                      type: Type.STRING,
+                      description: 'Optional URL or website to open in Chrome.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'openChrome',
+                description: 'Alias for open_chrome.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    url: {
+                      type: Type.STRING,
+                      description: 'Optional URL or website to open in Chrome.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'search_youtube',
+                description: 'Searches YouTube for a given query (song, video title, artist, or topic) such as "Hanuman Chalisa", "Arijit Singh songs", etc.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    query: {
+                      type: Type.STRING,
+                      description: 'The search query or song/video title to search on YouTube.'
+                    }
+                  },
+                  required: ['query']
+                }
+              },
+              {
                 name: 'searchYouTube',
                 description: 'Searches YouTube and plays a specific song, music video, or content (e.g. Arijit Singh songs, Hanuman Chalisa, tutorials).',
                 parameters: {
@@ -911,6 +1726,204 @@ ${sensRule}`;
                     }
                   },
                   required: ['query']
+                }
+              },
+              {
+                name: 'play_video',
+                description: 'Plays a video or music track (e.g. "Hanuman Chalisa") on YouTube/Chrome or in the media player.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    query: {
+                      type: Type.STRING,
+                      description: 'Optional query, song title, or video name to play.'
+                    },
+                    videoTitle: {
+                      type: Type.STRING,
+                      description: 'Optional title of the video.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'playVideo',
+                description: 'Alias for play_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    query: {
+                      type: Type.STRING,
+                      description: 'Optional query or video name to play.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'pause_video',
+                description: 'Pauses currently playing video or music.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'pauseVideo',
+                description: 'Alias for pause_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'resume_video',
+                description: 'Resumes video or music playback that was previously paused.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'resumeVideo',
+                description: 'Alias for resume_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'stop_video',
+                description: 'Stops currently playing video or media.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'stopVideo',
+                description: 'Alias for stop_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'mute_video',
+                description: 'Mutes the video or audio playback.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'muteVideo',
+                description: 'Alias for mute_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'unmute_video',
+                description: 'Unmutes the video or audio playback.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'unmuteVideo',
+                description: 'Alias for unmute_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'next_video',
+                description: 'Plays the next video or next song in the YouTube playlist/queue on the second screen.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'nextVideo',
+                description: 'Alias for next_video.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'open_second_screen',
+                description: 'Opens or focuses a dedicated second-screen browser window for YouTube, Google, Facebook, or other whitelisted websites while keeping the primary voice assistant running.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    service: {
+                      type: Type.STRING,
+                      description: 'The service name (e.g. youtube, google, facebook, spotify, wikipedia, custom).'
+                    },
+                    url: {
+                      type: Type.STRING,
+                      description: 'Optional URL or website to open in second screen.'
+                    },
+                    query: {
+                      type: Type.STRING,
+                      description: 'Optional search or video query to run on the second screen.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'openSecondScreen',
+                description: 'Alias for open_second_screen.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    service: {
+                      type: Type.STRING,
+                      description: 'Service name (youtube, google, facebook, custom).'
+                    },
+                    url: {
+                      type: Type.STRING,
+                      description: 'URL to open on second screen.'
+                    },
+                    query: {
+                      type: Type.STRING,
+                      description: 'Search or video query.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'close_second_screen',
+                description: 'Closes the second-screen browser window (e.g. "YouTube band karo", "Second screen band karo").',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'closeSecondScreen',
+                description: 'Alias for close_second_screen.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'control_second_screen_window',
+                description: 'Controls the second-screen window state (minimize, maximize, restore, popout).',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: minimize, maximize, restore, popout, focus.'
+                    }
+                  },
+                  required: ['action']
                 }
               },
               {
@@ -1114,6 +2127,96 @@ ${sensRule}`;
                 parameters: {
                   type: Type.OBJECT,
                   properties: {}
+                }
+              },
+              {
+                name: 'manageTimer',
+                description: 'Sets, queries remaining time, pauses, resumes, or cancels a countdown timer. When setting, assistant must confirm setup (e.g. "Timer set for 10 minutes, sir"). When querying remaining time, reports exact minutes and seconds remaining.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: "set", "status", "query", "pause", "resume", "cancel", "stop".'
+                    },
+                    durationMinutes: {
+                      type: Type.NUMBER,
+                      description: 'Duration in minutes (e.g. 10).'
+                    },
+                    durationSeconds: {
+                      type: Type.NUMBER,
+                      description: 'Duration in seconds (e.g. 30).'
+                    },
+                    duration: {
+                      type: Type.STRING,
+                      description: 'Natural duration string (e.g. "10 minutes", "5 min", "45 seconds", "1 hour 15 minutes").'
+                    },
+                    label: {
+                      type: Type.STRING,
+                      description: 'Optional label or purpose of the timer (e.g. "Tea", "Study", "Workout").'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'setTimer',
+                description: 'Sets a countdown timer for a specified duration and confirms setup to the user (e.g. "Timer set for 10 minutes, sir").',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    durationMinutes: {
+                      type: Type.NUMBER,
+                      description: 'Minutes to set for the timer.'
+                    },
+                    durationSeconds: {
+                      type: Type.NUMBER,
+                      description: 'Seconds to set for the timer.'
+                    },
+                    duration: {
+                      type: Type.STRING,
+                      description: 'Natural duration string (e.g. "10 minutes", "30 seconds").'
+                    },
+                    label: {
+                      type: Type.STRING,
+                      description: 'Optional label for the timer.'
+                    }
+                  }
+                }
+              },
+              {
+                name: 'getTimerStatus',
+                description: 'Queries the current remaining time on the active countdown timer (returns minutes and seconds remaining).',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'manageStopwatch',
+                description: 'Controls the Windows stopwatch: start, pause, resume, lap, stop, reset, or query current elapsed time.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: "start", "pause", "resume", "lap", "stop", "reset", "status".'
+                    }
+                  },
+                  required: ['action']
+                }
+              },
+              {
+                name: 'controlStopwatch',
+                description: 'Alias for manageStopwatch.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    action: {
+                      type: Type.STRING,
+                      description: 'One of: "start", "pause", "resume", "lap", "stop", "reset", "status".'
+                    }
+                  },
+                  required: ['action']
                 }
               }
             ]

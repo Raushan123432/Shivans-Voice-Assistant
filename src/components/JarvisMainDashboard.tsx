@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Sparkles, Play, Search, ShieldCheck, Zap, AlertTriangle, X, RotateCcw, Info } from 'lucide-react';
+import { 
+  Mic, MicOff, Volume2, VolumeX, Sparkles, Play, Search, ShieldCheck, 
+  Zap, AlertTriangle, X, RotateCcw, Info, Heart, Smile, Activity
+} from 'lucide-react';
 import { JarvisCore } from './3d/JarvisCore';
 import { AppState } from '../types';
+import { UserEmotion } from '../utils/emotionDetector';
 
 interface JarvisMainDashboardProps {
   appState: AppState;
   transcript?: string;
   errorMessage?: string | null;
+  emotion?: UserEmotion;
+  clapEnabled?: boolean;
+  clapNotice?: string | null;
   onStartSession: () => void;
   onStopSession: () => void;
   onClearError?: () => void;
@@ -22,6 +29,9 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
   appState,
   transcript,
   errorMessage,
+  emotion = 'Calm',
+  clapEnabled = true,
+  clapNotice,
   onStartSession,
   onStopSession,
   onClearError,
@@ -37,9 +47,11 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
 
   const getStatusText = () => {
     switch (appState) {
+      case 'clap_detected': return '👏 CLAP DETECTED!';
       case 'listening': return 'LISTENING...';
       case 'thinking': return 'THINKING...';
       case 'speaking': return 'SPEAKING...';
+      case 'sleeping': return 'STANDBY • SLEEPING';
       case 'error': return 'SYSTEM WARNING';
       default: return 'ONLINE • READY';
     }
@@ -47,38 +59,84 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
 
   const getStatusSubtext = () => {
     switch (appState) {
+      case 'clap_detected': return 'Acoustic transient verified. Waking Shivansh...';
       case 'listening': return 'Capturing acoustic input, sir...';
       case 'thinking': return 'Processing cognitive reasoning...';
-      case 'speaking': return 'Shivansh vocal synthesis active...';
-      default: return 'Awaiting your voice command, sir.';
+      case 'speaking': return 'Shivansh emotional voice synthesis active...';
+      case 'sleeping': return 'Clap your hands or speak "Shivansh" to wake.';
+      default: return clapEnabled 
+        ? 'Awaiting your voice command or 👏 clap...' 
+        : 'Awaiting your voice command, sir.';
+    }
+  };
+
+  const getEmotionColor = () => {
+    switch (emotion) {
+      case 'Happy': return 'text-emerald-300 bg-emerald-500/15 border-emerald-500/40';
+      case 'Sad': return 'text-sky-300 bg-sky-500/15 border-sky-500/40';
+      case 'Angry': return 'text-rose-300 bg-rose-500/15 border-rose-500/40';
+      case 'Excited': return 'text-amber-300 bg-amber-500/15 border-amber-500/40';
+      case 'Confused': return 'text-violet-300 bg-violet-500/15 border-violet-500/40';
+      case 'Tired': return 'text-indigo-300 bg-indigo-500/15 border-indigo-500/40';
+      case 'Joking': return 'text-pink-300 bg-pink-500/15 border-pink-500/40';
+      case 'Serious': return 'text-cyan-300 bg-cyan-500/15 border-cyan-500/40';
+      default: return 'text-teal-300 bg-teal-500/15 border-teal-500/40';
     }
   };
 
   const quickCommands = [
+    'Shivans AI, Chrome par Hanuman Chalisa chalao',
     'Shivansh, time batao',
-    'YouTube kholo',
+    'Aaj mera mood thoda kharab hai',
     'Chrome me YouTube par Arijit Singh ka song chalao',
+    'Video pause karo',
+    'Video resume karo',
+    'Set a timer for 10 minutes',
     'Take a screenshot',
     'Show PC system info',
-    'Lock PC',
-    'Open VS Code',
-    'Shivansh, open WhatsApp'
+    'Open VS Code'
   ];
 
   return (
     <div className="w-full h-full flex flex-col justify-between items-center relative overflow-hidden select-none p-4 sm:p-6 font-sans">
       
-      {/* Top Center Status Banner & Permission Alert */}
+      {/* Top Center Status Banner, Emotion Badge & Notice Alert */}
       <div className="flex flex-col items-center gap-2 z-20 mt-1 max-w-lg w-full">
-        <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] tracking-widest uppercase flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-          <span className={`w-2 h-2 rounded-full ${
-            appState === 'listening' ? 'bg-cyan-400 animate-ping' :
-            appState === 'thinking' ? 'bg-amber-400 animate-pulse' :
-            appState === 'speaking' ? 'bg-fuchsia-400 animate-ping' :
-            'bg-emerald-400'
-          }`} />
-          <span>{getStatusText()}</span>
+        
+        <div className="flex items-center gap-2">
+          {/* Main State Pill */}
+          <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] tracking-widest uppercase flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+            <span className={`w-2 h-2 rounded-full ${
+              appState === 'clap_detected' ? 'bg-amber-300 animate-ping' :
+              appState === 'listening' ? 'bg-cyan-400 animate-ping' :
+              appState === 'thinking' ? 'bg-amber-400 animate-pulse' :
+              appState === 'speaking' ? 'bg-fuchsia-400 animate-ping' :
+              'bg-emerald-400'
+            }`} />
+            <span>{getStatusText()}</span>
+          </div>
+
+          {/* Emotion Badge */}
+          <div className={`px-2.5 py-1 rounded-full border text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-md transition-all ${getEmotionColor()}`}>
+            <Heart className="w-3 h-3 animate-pulse" />
+            <span>Mood: {emotion}</span>
+          </div>
+
+          {/* Clap-to-talk indicator */}
+          {clapEnabled && (
+            <div className="px-2 py-1 rounded-full bg-slate-900 border border-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold flex items-center gap-1">
+              <span>👏 Clap Wake ON</span>
+            </div>
+          )}
         </div>
+
+        {/* Transient Clap Trigger Notice */}
+        {clapNotice && (
+          <div className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-200 font-mono text-xs font-bold animate-bounce shadow-2xl flex items-center gap-2">
+            <span>👏</span>
+            <span>{clapNotice}</span>
+          </div>
+        )}
 
         {/* Microphone / Connection Error Warning Banner */}
         {errorMessage && (
@@ -146,7 +204,7 @@ export const JarvisMainDashboard: React.FC<JarvisMainDashboardProps> = ({
           <p className="text-xs sm:text-sm font-mono text-cyan-300 tracking-wider uppercase mt-1 drop-shadow-md">
             {getStatusText()}
           </p>
-          <p className="text-[11px] font-mono text-slate-400 max-w-xs mt-2 transition-all">
+          <p className="text-[11px] font-mono text-slate-300 max-w-xs mt-2 transition-all">
             {transcript ? `"${transcript}"` : getStatusSubtext()}
           </p>
         </div>

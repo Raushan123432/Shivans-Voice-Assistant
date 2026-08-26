@@ -19,6 +19,8 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { SettingsDashboard } from './components/SettingsDashboard';
 import { BackgroundCanvas } from './components/3d/BackgroundCanvas';
 import { CursorFX } from './components/CursorFX';
+import { VideoPlayerDock } from './components/VideoPlayerDock';
+import { SecondScreenWindow } from './components/SecondScreenWindow';
 import ApiKeyModal from './components/ApiKeyModal';
 import LogsModal from './components/LogsModal';
 
@@ -33,8 +35,18 @@ export default function App() {
     voice,
     speakingRate,
     assistantName,
+    emotion,
+    clapEnabled,
+    clapMode,
+    clapSensitivity,
+    clapNotice,
+    backgroundModeEnabled,
     startSession,
     stopSession,
+    toggleClapEnabled,
+    changeClapMode,
+    changeClapSensitivity,
+    toggleBackgroundMode,
     changeVoice,
     changeSpeakingRate,
     changeAssistantName,
@@ -165,6 +177,7 @@ export default function App() {
         onOpenLogs={() => setShowLogsModal(true)}
         onOpenApiKey={() => setShowApiKeyModal(true)}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggleMic={handleToggleVoiceSession}
       />
 
       {/* MAIN DESKTOP THREE-COLUMN WORKSPACE */}
@@ -186,6 +199,9 @@ export default function App() {
               appState={appState}
               transcript={transcript?.text}
               errorMessage={errorMessage}
+              emotion={emotion}
+              clapEnabled={clapEnabled}
+              clapNotice={clapNotice}
               onStartSession={startSession}
               onStopSession={stopSession}
               onClearError={clearError}
@@ -228,16 +244,27 @@ export default function App() {
               volume={volume}
               speakingRate={speakingRate}
               assistantName={assistantName}
+              clapEnabled={clapEnabled}
+              clapMode={clapMode}
+              clapSensitivity={clapSensitivity}
+              backgroundModeEnabled={backgroundModeEnabled}
               onChangeVoice={changeVoice}
               onChangeVolume={changeVolume}
               onChangeRate={changeSpeakingRate}
               onChangeAssistantName={changeAssistantName}
+              onToggleClap={toggleClapEnabled}
+              onChangeClapMode={changeClapMode}
+              onChangeClapSensitivity={changeClapSensitivity}
+              onToggleBackgroundMode={toggleBackgroundMode}
             />
           ) : (
             <JarvisMainDashboard
               appState={appState}
               transcript={transcript?.text}
               errorMessage={errorMessage}
+              emotion={emotion}
+              clapEnabled={clapEnabled}
+              clapNotice={clapNotice}
               onStartSession={startSession}
               onStopSession={stopSession}
               onClearError={clearError}
@@ -291,15 +318,29 @@ export default function App() {
                 volume={volume}
                 speakingRate={speakingRate}
                 assistantName={assistantName}
+                clapEnabled={clapEnabled}
+                clapMode={clapMode}
+                clapSensitivity={clapSensitivity}
+                backgroundModeEnabled={backgroundModeEnabled}
                 onChangeVoice={changeVoice}
                 onChangeVolume={changeVolume}
                 onChangeRate={changeSpeakingRate}
                 onChangeAssistantName={changeAssistantName}
+                onToggleClap={toggleClapEnabled}
+                onChangeClapMode={changeClapMode}
+                onChangeClapSensitivity={changeClapSensitivity}
+                onToggleBackgroundMode={toggleBackgroundMode}
               />
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* VIDEO / YOUTUBE / CHROME PLAYBACK DOCK */}
+      <VideoPlayerDock onSendVoiceCommand={sendTextMessage} />
+
+      {/* SHIVANS AI DEDICATED SECOND SCREEN WINDOW CONTROLLER */}
+      <SecondScreenWindow onVoiceCommandTrigger={handleExecuteVoiceCommand} />
 
       {/* API KEY MODAL */}
       <ApiKeyModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />

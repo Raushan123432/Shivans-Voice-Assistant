@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Send, Mic, Copy, Volume2, Bot, User, Check, Sparkles, Trash2 } from 'lucide-react';
 import { ChatMessage } from '../types';
 
@@ -64,71 +65,84 @@ export const AIConversationPanel: React.FC<AIConversationPanelProps> = ({
 
       {/* Message List */}
       <div className="flex-1 overflow-y-auto my-4 space-y-3 pr-2 custom-scrollbar">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 font-mono text-xs gap-2">
-            <Sparkles className="w-8 h-8 text-cyan-400 animate-pulse" />
-            <p className="text-sm font-bold text-slate-200">SHIVANSH Neural Interface Standby</p>
-            <p className="text-slate-400 max-w-sm">
-              Type a command or click the microphone to ask SHIVANSH about system status, applications, files, or tasks.
-            </p>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${msg.isUser ? 'items-end' : 'items-start'} gap-1`}
+        <AnimatePresence initial={false}>
+          {messages.length === 0 ? (
+            <motion.div
+              key="empty-state"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 font-mono text-xs gap-2"
             >
-              <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-                {msg.isUser ? (
-                  <>
-                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="text-cyan-400 font-bold">SIR</span>
-                    <User className="w-3 h-3 text-cyan-400" />
-                  </>
-                ) : (
-                  <>
-                    <Bot className="w-3 h-3 text-purple-400" />
-                    <span className="text-purple-300 font-bold">SHIVANSH</span>
-                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </>
-                )}
-              </div>
+              <Sparkles className="w-8 h-8 text-cyan-400 animate-pulse" />
+              <p className="text-sm font-bold text-slate-200">SHIVANSH Neural Interface Standby</p>
+              <p className="text-slate-400 max-w-sm">
+                Type a command or click the microphone to ask SHIVANSH about system status, applications, files, or tasks.
+              </p>
+            </motion.div>
+          ) : (
+            messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                id={`chat-msg-${msg.id}`}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className={`flex flex-col ${msg.isUser ? 'items-end' : 'items-start'} gap-1`}
+              >
+                <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                  {msg.isUser ? (
+                    <>
+                      <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-cyan-400 font-bold">SIR</span>
+                      <User className="w-3 h-3 text-cyan-400" />
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="w-3 h-3 text-purple-400" />
+                      <span className="text-purple-300 font-bold">SHIVANSH</span>
+                      <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </>
+                  )}
+                </div>
 
-              <div className={`group relative max-w-[85%] p-3.5 rounded-2xl text-xs sm:text-sm font-sans shadow-lg leading-relaxed ${
-                msg.isUser
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tr-none'
-                  : 'bg-slate-900 border border-purple-500/30 text-slate-100 rounded-tl-none'
-              }`}>
-                {msg.text}
+                <div className={`group relative max-w-[85%] p-3.5 rounded-2xl text-xs sm:text-sm font-sans shadow-lg leading-relaxed ${
+                  msg.isUser
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tr-none'
+                    : 'bg-slate-900 border border-purple-500/30 text-slate-100 rounded-tl-none'
+                }`}>
+                  {msg.text}
 
-                {/* Message Actions */}
-                {!msg.isUser && (
-                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-400">
-                    <button
-                      onClick={() => handleCopy(msg.id, msg.text)}
-                      className="hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Copy response"
-                    >
-                      {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
-                    </button>
-
-                    {onSpeakText && (
+                  {/* Message Actions */}
+                  {!msg.isUser && (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-400">
                       <button
-                        onClick={() => onSpeakText(msg.text)}
-                        className="hover:text-purple-300 flex items-center gap-1 cursor-pointer transition-colors ml-2"
-                        title="Speak response"
+                        onClick={() => handleCopy(msg.id, msg.text)}
+                        className="hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Copy response"
                       >
-                        <Volume2 className="w-3 h-3 text-purple-400" />
-                        <span>Speak</span>
+                        {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+
+                      {onSpeakText && (
+                        <button
+                          onClick={() => onSpeakText(msg.text)}
+                          className="hover:text-purple-300 flex items-center gap-1 cursor-pointer transition-colors ml-2"
+                          title="Speak response"
+                        >
+                          <Volume2 className="w-3 h-3 text-purple-400" />
+                          <span>Speak</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
         <div ref={chatEndRef} />
       </div>
 

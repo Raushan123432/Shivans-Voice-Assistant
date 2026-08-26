@@ -7,6 +7,7 @@ interface HUDTopBarProps {
   onOpenLogs?: () => void;
   onOpenApiKey?: () => void;
   onToggleSidebar?: () => void;
+  onToggleMic?: () => void;
 }
 
 export const HUDTopBar: React.FC<HUDTopBarProps> = ({
@@ -14,7 +15,8 @@ export const HUDTopBar: React.FC<HUDTopBarProps> = ({
   onOpenSettings,
   onOpenLogs,
   onOpenApiKey,
-  onToggleSidebar
+  onToggleSidebar,
+  onToggleMic
 }) => {
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -106,10 +108,24 @@ export const HUDTopBar: React.FC<HUDTopBarProps> = ({
             <span>Connected</span>
           </div>
           <span className="text-slate-700">|</span>
-          <div className="flex items-center gap-1.5 text-cyan-400" title="Microphone Active">
+          <button
+            onClick={onToggleMic}
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+              appState === 'listening' 
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse'
+                : appState === 'speaking'
+                ? 'bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300'
+                : appState === 'thinking'
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'bg-slate-900 border-slate-800 text-cyan-400 hover:border-cyan-500/50'
+            }`}
+            title="Click to Toggle Microphone Listening"
+          >
             <Mic className="w-3.5 h-3.5" />
-            <span>Mic Active</span>
-          </div>
+            <span className="font-bold">
+              {appState === 'listening' ? 'Mic ON (Listening)' : appState === 'speaking' ? 'Mic ON (Speaking)' : 'Mic Enabled'}
+            </span>
+          </button>
           <span className="text-slate-700">|</span>
           <div className="flex items-center gap-1.5 text-indigo-400" title="Security Status">
             <ShieldCheck className="w-3.5 h-3.5" />
